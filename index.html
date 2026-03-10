@@ -378,8 +378,8 @@ const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const COURSES = [
-  { id:'part-a', title:'Hazardous Substances Worker Training', subtitle:'Part A — Foundations', tag:'Core Module', hsno:'All Classes', duration:'45 min', slides:32 },
-  { id:'part-b', title:'Hazardous Substances Worker Training', subtitle:'Part B — Specific Substances', tag:'Specialist Module', hsno:'Class 2, 3, 8', duration:'40 min', slides:31 }
+  { id:'part-a', title:'Hazardous Substances Worker Training', subtitle:'Part A — Foundations', tag:'Core Module', hsno:'All Classes', duration:'45 min', slides:32, scorm:'Repco_Module1_SCORM_v18_09mar26.zip' },
+  { id:'part-b', title:'Hazardous Substances Worker Training', subtitle:'Part B — Specific Substances', tag:'Specialist Module', hsno:'Class 2, 3, 8', duration:'40 min', slides:31, scorm:'Repco_PartB_SCORM_v2.zip' }
 ];
 
 let currentUser=null, currentProfile=null, userProgress={}, currentCourse=null, currentSlide=1;
@@ -539,7 +539,7 @@ function loadSlide(num){
   document.getElementById('btn-prev').disabled=num===1;
   const isLast=num===c.slides;
   document.getElementById('btn-next').textContent=isLast?'Complete Module ✓':'Next →';
-  document.getElementById('player-frame').srcdoc=buildSlidePage(c,num);
+  const frame=document.getElementById('player-frame'); frame.srcdoc=buildSlidePage(c,num);
   saveProgress(c.id,num,'in_progress');
 }
 
