@@ -1122,20 +1122,18 @@ function dgcSpeak(text){
 }
 
 async function dgcPlay(){
-  var slideNum = cur; // capture current slide number
   var rawText = dgcGetText();
-  if(!rawText) return;
+  if(!rawText){ alert('No text found on this slide'); return; }
   var btn=document.getElementById('dgc-voice-btn');
-  if(btn){btn.textContent='⏳...';btn.style.background='#555';btn.disabled=true;}
+  if(btn){btn.textContent='⏳ Loading...';btn.style.background='#555';btn.disabled=true;}
   try{
     var res=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({message:'Rewrite as trainer speaking to worker, 2-3 sentences, warm tone: '+rawText,userName:null,organisation:null})});
+      body:JSON.stringify({message:'You are a friendly NZ trainer. Explain this slide content naturally to a worker in 5-6 sentences, conversational tone: '+rawText,userName:null,organisation:null})});
     var data=await res.json();
-    if(cur===slideNum){ dgcSpeak(data.reply||rawText); } // only speak if still on same slide
-    else { if(btn){btn.textContent='🔊 Read Slide';btn.style.background='#F76604';btn.disabled=false;} }
+    dgcSpeak(data.reply || rawText);
   }catch(e){
-    if(cur===slideNum) dgcSpeak(rawText);
-    else { if(btn){btn.textContent='🔊 Read Slide';btn.style.background='#F76604';btn.disabled=false;} }
+    console.error('dgcPlay error:', e);
+    dgcSpeak(rawText);
   }
 }
 </script>
