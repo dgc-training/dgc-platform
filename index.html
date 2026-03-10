@@ -913,37 +913,11 @@ async function sendNotifications(){
 
   if(targets.length===0){ resultEl.innerHTML='<span style="color:var(--gray-400);">No workers match this criteria.</span>'; return; }
   
+  const extra=msg?'\n'+msg+'\n\n':'';
   const messages={
-    reminder:`Hi {name},
-
-This is a reminder that you have outstanding hazardous substances training to complete.
-
-Please log in at https://dgc-platform-blond.vercel.app to continue your training.
-
-${msg?'
-'+msg+'
-
-':''}DGC Training Team`,
-    overdue:`Hi {name},
-
-Your hazardous substances training is now OVERDUE. Please complete it as soon as possible.
-
-Log in at: https://dgc-platform-blond.vercel.app
-
-${msg?'
-'+msg+'
-
-':''}DGC Training Team`,
-    welcome:`Hi {name},
-
-Welcome to DGC Training! You have been enrolled in hazardous substances training.
-
-Get started at: https://dgc-platform-blond.vercel.app
-
-${msg?'
-'+msg+'
-
-':''}DGC Training Team`
+    reminder:'Hi {name},\n\nThis is a reminder that you have outstanding hazardous substances training to complete.\n\nPlease log in at https://dgc-platform-blond.vercel.app to continue your training.\n\n'+extra+'DGC Training Team',
+    overdue:'Hi {name},\n\nYour hazardous substances training is now OVERDUE. Please complete it as soon as possible.\n\nLog in at: https://dgc-platform-blond.vercel.app\n\n'+extra+'DGC Training Team',
+    welcome:'Hi {name},\n\nWelcome to DGC Training! You have been enrolled in hazardous substances training.\n\nGet started at: https://dgc-platform-blond.vercel.app\n\n'+extra+'DGC Training Team'
   };
 
   // Use Supabase edge function or API to send emails
@@ -1089,7 +1063,7 @@ function showToast(msg,type='info'){
   setTimeout(()=>el.classList.remove('show'),3500);
 }
 
-init();
+init().catch(e=>{ console.error('Init error:',e); hideLoading(); showPage('login'); });
 </script>
 
 <!-- ─── AI VOICE ASSISTANT ─── -->
