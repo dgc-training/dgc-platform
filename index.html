@@ -544,6 +544,7 @@ function loadSlide(num){
 }
 
 function buildSlidePage(course,slideNum){
+  const origin=window.location.origin;
   return `<!DOCTYPE html><html><head><style>
     body{margin:0;background:#f0f2ff;font-family:'Segoe UI',sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;}
     .card{background:white;border-radius:14px;padding:48px 56px;text-align:center;box-shadow:0 4px 32px rgba(0,0,40,0.1);max-width:560px;width:90%;}
@@ -557,7 +558,7 @@ function buildSlidePage(course,slideNum){
     <div class="num">${slideNum}</div>
     <h2>${course.title}</h2>
     <div class="sub">${course.subtitle} &nbsp;·&nbsp; Slide ${slideNum} of ${course.slides}</div>
-    <a href="/${course.id === 'part-a' ? 'part-a.html' : 'part-b.html'}" target="_blank" style="display:inline-block;margin-top:20px;background:#F76604;color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-family:Barlow Condensed,sans-serif;font-size:18px;font-weight:700;letter-spacing:0.5px;">▶ Launch Training Module</a>
+    <a href="${origin}/${course.id === 'part-a' ? 'part-a.html' : 'part-b.html'}" target="_blank" style="display:inline-block;margin-top:20px;background:#F76604;color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-family:Barlow Condensed,sans-serif;font-size:18px;font-weight:700;letter-spacing:0.5px;">▶ Launch Training Module</a>
     <p style="margin-top:12px;color:#999;font-size:13px;">Opens in a new tab</p>
   </div></body></html>`;
 }
