@@ -1286,7 +1286,11 @@ async function sendAiMessage() {
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: text })
+      body: JSON.stringify({ 
+        message: text,
+        userName: currentProfile?.full_name || null,
+        organisation: currentProfile?.organisation || null
+      })
     });
     const data = await res.json();
     typingEl.remove();
