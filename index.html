@@ -428,7 +428,7 @@ document.getElementById('btn-register').addEventListener('click', async()=>{
   if(data.user){
     await sb.from('profiles').upsert({id:data.user.id,full_name:name,organisation:org,role:'worker',created_at:new Date().toISOString()});
   }
-  showOk('Account created! Check your email to verify, then sign in.');
+  if(data.session){ currentUser=data.user; await loadProfile(); showPage('dashboard'); } else { showOk('Account created! You can now sign in.'); showPage('login'); }
 });
 
 document.getElementById('login-password').addEventListener('keypress',e=>{ if(e.key==='Enter') document.getElementById('btn-login').click(); });
