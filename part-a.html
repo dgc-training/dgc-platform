@@ -1040,10 +1040,101 @@ strong{color:var(--dark);}
 </div>
 
 </div><!-- /sc -->
-<div id="nav">
+<div id="nav" style="display:flex;align-items:center;gap:12px;">
   <button class="nbtn" id="pb-btn" onclick="chg(-1)" disabled>← Previous</button>
+  <button id="dgc-voice-btn" onclick="dgcToggleVoice()" style="background:#F76604;border:none;color:white;border-radius:8px;padding:10px 24px;cursor:pointer;font-size:15px;font-weight:700;font-family:inherit;flex:1;max-width:200px;">🔊 Read Slide</button>
   <button class="nbtn" id="nx-btn" onclick="chg(1)">Next →</button>
 </div>
+
+<script>
+(function(){
+  var playing = false;
+
+  window.dgcToggleVoice = function(){
+    if(playing){ dgcStop(); } else { dgcPlay(); }
+  };
+
+  function dgcStop(){
+    window.speechSynthesis.cancel();
+    playing = false;
+    var btn = document.getElementById('dgc-voice-btn');
+    if(btn){ btn.textContent = '🔊 Read Slide'; btn.style.background = '#F76604'; }
+  }
+
+  function getSlideText(){
+    var parts = [];
+    var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+    var node;
+    while(node = walker.nextNode()){
+      var p = node.parentElement;
+      var skip = false;
+      while(p){
+        if(['SCRIPT','STYLE','BUTTON'].indexOf(p.tagName) >= 0 || p.id === 'nav' || p.id === 'comp'){ skip=true; break; }
+        p = p.parentElement;
+      }
+      if(!skip){
+        var t = node.textContent.trim();
+        if(t.length > 2) parts.push(t);
+      }
+    }
+    return parts.join(' ').replace(/\s+/g,' ').trim().slice(0, 600);
+  }
+
+  function speakText(text){
+    window.speechSynthesis.cancel();
+    var utt = new SpeechSynthesisUtterance(text);
+    utt.rate = 0.85;   // slower — trainer pace
+    utt.pitch = 1.05;  // slightly warmer
+    utt.volume = 1.0;
+    var voices = window.speechSynthesis.getVoices();
+    var voice = voices.find(function(v){ return v.lang === 'en-NZ'; }) ||
+                voices.find(function(v){ return v.lang === 'en-AU'; }) ||
+                voices.find(function(v){ return v.lang.indexOf('en') === 0; }) || voices[0];
+    if(voice) utt.voice = voice;
+    playing = true;
+    var btn = document.getElementById('dgc-voice-btn');
+    if(btn){ btn.textContent = '⏹ Stop'; btn.style.background = '#c0392b'; }
+    utt.onend = function(){ dgcStop(); };
+    utt.onerror = function(){ dgcStop(); };
+    window.speechSynthesis.speak(utt);
+  }
+
+  async function dgcPlay(){
+    var rawText = getSlideText();
+    if(!rawText) return;
+
+    var btn = document.getElementById('dgc-voice-btn');
+    if(btn){ btn.textContent = '⏳ Preparing...'; btn.style.background = '#666'; btn.disabled = true; }
+
+    // Ask AI to rewrite as a trainer explanation
+    try {
+      var res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: 'Rewrite this slide content as a warm, friendly trainer speaking to a worker. 3-4 sentences. Conversational, no bullet points, explain WHY it matters. Slide content: ' + rawText,
+          userName: null, organisation: null
+        })
+      });
+      var data = await res.json();
+      var explanation = data.reply || rawText;
+      if(btn) btn.disabled = false;
+      speakText(explanation);
+    } catch(e) {
+      // Fallback to raw text at slower rate
+      if(btn) btn.disabled = false;
+      speakText(rawText);
+    }
+  }
+
+  // Stop when slide changes
+  var _origChg = window.chg;
+  window.chg = function(d){
+    dgcStop();
+    if(_origChg) _origChg(d);
+  };
+})();
+</script>
 </div><!-- /viewer -->
 
 <div id="comp">
@@ -1111,105 +1202,6 @@ document.addEventListener('keydown',function(e){
   if(e.key==='ArrowRight'||e.key==='ArrowDown')chg(1);
   if(e.key==='ArrowLeft'||e.key==='ArrowUp')chg(-1);
 });
-</script>
-
-<!-- DGC Voice Bar -->
-<div id="dgc-voice-bar" style="position:fixed;bottom:0;left:0;right:0;background:#0D0040;border-top:2px solid #F76604;padding:10px 20px;display:flex;align-items:center;gap:12px;z-index:99999;font-family:'Segoe UI',sans-serif;">
-  <span style="color:#F76604;font-weight:700;font-size:13px;white-space:nowrap;">🔊 DGC Voice</span>
-  <button id="dgc-play-btn" onclick="dgcToggleVoice()" style="background:#F76604;border:none;color:white;border-radius:8px;padding:8px 20px;cursor:pointer;font-size:14px;font-weight:600;white-space:nowrap;">▶ Read Slide</button>
-  <input id="dgc-speed" type="range" min="0.7" max="1.5" step="0.1" value="1.0" style="width:80px;accent-color:#F76604;" title="Speed">
-  <span style="color:#aaa;font-size:12px;" id="dgc-speed-label">1.0x</span>
-  <span id="dgc-status" style="color:#aaa;font-size:12px;flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;"></span>
-</div>
-<style>
-  /* Push slide content up so voice bar doesn't cover it */
-  body { padding-bottom: 56px !important; }
-</style>
-<script>
-(function(){
-  var playing = false;
-  var utt = null;
-
-  document.getElementById('dgc-speed').addEventListener('input', function(){
-    document.getElementById('dgc-speed-label').textContent = parseFloat(this.value).toFixed(1) + 'x';
-  });
-
-  window.dgcToggleVoice = function(){
-    if(playing){ dgcStop(); return; }
-    dgcPlay();
-  };
-
-  function dgcStop(){
-    window.speechSynthesis.cancel();
-    playing = false;
-    var btn = document.getElementById('dgc-play-btn');
-    btn.textContent = '▶ Read Slide';
-    btn.style.background = '#F76604';
-    document.getElementById('dgc-status').textContent = '';
-  }
-
-  function dgcPlay(){
-    // Get text from current visible slide
-    var text = '';
-    // Try active slide container
-    var selectors = ['.slide.active', '.slide[style*="block"]', '[data-slide].active', '.current-slide', '#slide-content'];
-    for(var i=0;i<selectors.length;i++){
-      var el = document.querySelector(selectors[i]);
-      if(el){ text = el.innerText || el.textContent; break; }
-    }
-    // Fallback: get all visible text from main content area, skip nav
-    if(!text || text.trim().length < 10){
-      var skip = ['script','style','nav','button','#dgc-voice-bar'];
-      var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
-      var parts = [];
-      var node;
-      while(node = walker.nextNode()){
-        var p = node.parentElement;
-        var skip_this = false;
-        while(p){
-          if(p.id === 'dgc-voice-bar'){ skip_this=true; break; }
-          if(['SCRIPT','STYLE','BUTTON','NAV'].indexOf(p.tagName)>=0){ skip_this=true; break; }
-          p = p.parentElement;
-        }
-        if(!skip_this){
-          var t = node.textContent.trim();
-          if(t.length > 2) parts.push(t);
-        }
-      }
-      text = parts.join(' ');
-    }
-    text = text.replace(/\s+/g,' ').trim().slice(0, 800);
-    if(!text){ document.getElementById('dgc-status').textContent = 'No text found on this slide'; return; }
-
-    window.speechSynthesis.cancel();
-    utt = new SpeechSynthesisUtterance(text);
-    utt.rate = parseFloat(document.getElementById('dgc-speed').value);
-    utt.pitch = 1.0;
-    var voices = window.speechSynthesis.getVoices();
-    var voice = voices.find(function(v){ return v.lang==='en-NZ'; }) ||
-                voices.find(function(v){ return v.lang.indexOf('en')===0; }) ||
-                voices[0];
-    if(voice) utt.voice = voice;
-
-    playing = true;
-    var btn = document.getElementById('dgc-play-btn');
-    btn.textContent = '⏹ Stop';
-    btn.style.background = '#c0392b';
-    document.getElementById('dgc-status').textContent = text.slice(0,60) + '...';
-
-    utt.onend = function(){ dgcStop(); };
-    utt.onerror = function(){ dgcStop(); };
-    window.speechSynthesis.speak(utt);
-  }
-
-  // Auto-stop when slide changes
-  var lastSlide = '';
-  setInterval(function(){
-    var slideEl = document.querySelector('.progress, [data-current], #slide-num, .slide-counter');
-    var cur = slideEl ? slideEl.textContent : document.title;
-    if(cur !== lastSlide){ lastSlide = cur; if(playing) dgcStop(); }
-  }, 500);
-})();
 </script>
 
 </body>
