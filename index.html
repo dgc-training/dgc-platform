@@ -1227,9 +1227,7 @@ function speakText(text) {
   const clean = text.replace(/[*#\-]/g,'').replace(/\n+/g,' ').trim();
   const sentences = clean.match(/[^.!?]+[.!?]+/g)||[clean];
   pendingTTS = sentences.slice(0,2).join(' ').trim();
-  // Show play button in stop btn area
-  const btn = document.getElementById('ai-stop-btn');
-  if(btn){ btn.textContent='▶ Play'; btn.style.background='rgba(34,197,94,0.3)'; btn.style.borderColor='#22c55e'; btn.onclick = playTTS; }
+  playTTS();
 }
 
 function playTTS() {
@@ -1259,6 +1257,14 @@ async function sendAiMessage() {
   if(!text) return;
   aiInput.value = '';
   aiSuggestions.style.display = 'none';
+  
+  // Pre-warm speech synthesis inside user gesture context
+  if('speechSynthesis' in window){ 
+    const warmup = new SpeechSynthesisUtterance(' ');
+    warmup.volume = 0;
+    window.speechSynthesis.speak(warmup);
+    window.speechSynthesis.cancel();
+  }
 
   // Add user message
   addMsg(text, 'user');
@@ -1288,6 +1294,17 @@ async function sendAiMessage() {
 }
 
 function addMsg(text, type) {
+  // If bot message, add play button inline
+  if(type === 'bot') {
+    const div = document.createElement('div');
+    div.className = 'ai-msg bot';
+    div.innerHTML = text.replace(/\n/g,'<br>') + 
+      '<br><button onclick="playTTS()" style="margin-top:6px;background:rgba(34,197,94,0.2);border:1px solid #22c55e;color:#22c55e;border-radius:6px;padding:3px 10px;cursor:pointer;font-size:12px;">▶ Play</button>';
+    const msgs = document.getElementById('ai-messages');
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+    return;
+  }
   const el = document.createElement('div');
   el.className = `ai-msg ${type}`;
   el.textContent = text;
