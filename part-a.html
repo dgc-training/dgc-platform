@@ -1047,102 +1047,71 @@ strong{color:var(--dark);}
 </div>
 
 <script>
-(function(){
-  var playing = false;
-  var currentSlideId = '';
+var _dgcPlaying = false;
 
-  function getSlideId(){
-    // Use slide counter text as unique ID
-    var el = document.querySelector('#slide-num, .slide-counter, [data-slide]');
-    return el ? el.textContent : document.title;
-  }
+window.dgcToggleVoice = function(){
+  if(_dgcPlaying){ dgcStop(); } else { dgcPlay(); }
+};
 
-  window.dgcToggleVoice = function(){
-    if(playing){ dgcStop(); } else { dgcPlay(); }
-  };
+function dgcStop(){
+  window.speechSynthesis.cancel();
+  _dgcPlaying = false;
+  var btn = document.getElementById('dgc-voice-btn');
+  if(btn){ btn.textContent='🔊 Read Slide'; btn.style.background='#F76604'; btn.disabled=false; }
+}
 
-  function dgcStop(){
-    window.speechSynthesis.cancel();
-    playing = false;
-    var btn = document.getElementById('dgc-voice-btn');
-    if(btn){ btn.textContent = '🔊 Read Slide'; btn.style.background = '#F76604'; btn.disabled = false; }
-  }
-
-  function getSlideText(){
-    var parts = [];
-    var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
-    var node;
-    while(node = walker.nextNode()){
-      var p = node.parentElement;
-      var skip = false;
-      while(p){
-        if(['SCRIPT','STYLE','BUTTON'].indexOf(p.tagName) >= 0 || p.id === 'nav' || p.id === 'comp'){ skip=true; break; }
-        p = p.parentElement;
-      }
-      if(!skip){ var t = node.textContent.trim(); if(t.length > 2) parts.push(t); }
+function dgcGetText(){
+  var parts = [];
+  var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+  var node;
+  while(node = walker.nextNode()){
+    var p = node.parentElement; var skip = false;
+    while(p){
+      if(['SCRIPT','STYLE','BUTTON'].indexOf(p.tagName)>=0||p.id==='nav'||p.id==='comp'){skip=true;break;}
+      p=p.parentElement;
     }
-    return parts.join(' ').replace(/\s+/g,' ').trim().slice(0, 500);
+    if(!skip){ var t=node.textContent.trim(); if(t.length>2) parts.push(t); }
   }
+  return parts.join(' ').replace(/\s+/g,' ').trim().slice(0,500);
+}
 
-  function speakNow(text, slideId){
-    window.speechSynthesis.cancel();
-    var utt = new SpeechSynthesisUtterance(text);
-    utt.rate = 0.88;
-    utt.pitch = 1.05;
-    utt.volume = 1.0;
-    var voices = window.speechSynthesis.getVoices();
-    var voice = voices.find(function(v){ return v.lang==='en-NZ'; }) ||
-                voices.find(function(v){ return v.lang==='en-AU'; }) ||
-                voices.find(function(v){ return v.lang.indexOf('en')===0; }) || voices[0];
-    if(voice) utt.voice = voice;
-    playing = true;
-    var btn = document.getElementById('dgc-voice-btn');
-    if(btn){ btn.textContent = '⏹ Stop'; btn.style.background = '#c0392b'; btn.disabled = false; }
-    utt.onend = function(){ if(currentSlideId === slideId) dgcStop(); };
-    utt.onerror = function(){ dgcStop(); };
-    window.speechSynthesis.speak(utt);
+function dgcSpeak(text){
+  window.speechSynthesis.cancel();
+  var utt = new SpeechSynthesisUtterance(text);
+  utt.rate=0.88; utt.pitch=1.05; utt.volume=1.0;
+  var voices=window.speechSynthesis.getVoices();
+  var voice=voices.find(function(v){return v.lang==='en-NZ';})||
+            voices.find(function(v){return v.lang==='en-AU';})||
+            voices.find(function(v){return v.lang.indexOf('en')===0;})||voices[0];
+  if(voice) utt.voice=voice;
+  _dgcPlaying=true;
+  var btn=document.getElementById('dgc-voice-btn');
+  if(btn){btn.textContent='⏹ Stop';btn.style.background='#c0392b';btn.disabled=false;}
+  utt.onend=function(){dgcStop();};
+  utt.onerror=function(){dgcStop();};
+  window.speechSynthesis.speak(utt);
+}
+
+async function dgcPlay(){
+  var slideNum = cur; // capture current slide number
+  var rawText = dgcGetText();
+  if(!rawText) return;
+  var btn=document.getElementById('dgc-voice-btn');
+  if(btn){btn.textContent='⏳...';btn.style.background='#555';btn.disabled=true;}
+  try{
+    var res=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({message:'Rewrite as trainer speaking to worker, 2-3 sentences, warm tone: '+rawText,userName:null,organisation:null})});
+    var data=await res.json();
+    if(cur===slideNum){ dgcSpeak(data.reply||rawText); } // only speak if still on same slide
+    else { if(btn){btn.textContent='🔊 Read Slide';btn.style.background='#F76604';btn.disabled=false;} }
+  }catch(e){
+    if(cur===slideNum) dgcSpeak(rawText);
+    else { if(btn){btn.textContent='🔊 Read Slide';btn.style.background='#F76604';btn.disabled=false;} }
   }
-
-  async function dgcPlay(){
-    var slideId = getSlideId();
-    currentSlideId = slideId;
-    var rawText = getSlideText();
-    if(!rawText) return;
-
-    var btn = document.getElementById('dgc-voice-btn');
-    if(btn){ btn.textContent = '⏳ Preparing...'; btn.style.background = '#555'; btn.disabled = true; }
-
-    try {
-      var res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({
-          message: 'Rewrite this slide content as a trainer speaking to a worker. 2-3 sentences only. Warm and conversational. Slide: ' + rawText,
-          userName: null, organisation: null
-        })
-      });
-      var data = await res.json();
-      // Only speak if still on same slide
-      if(currentSlideId === slideId){
-        speakNow(data.reply || rawText, slideId);
-      }
-    } catch(e) {
-      if(currentSlideId === slideId) speakNow(rawText, slideId);
-    }
-  }
-
-  // Override chg to ALWAYS stop before changing slide
-  var _origChg = window.chg;
-  window.chg = function(d){
-    window.speechSynthesis.cancel();
-    playing = false;
-    currentSlideId = 'changing';
-    var btn = document.getElementById('dgc-voice-btn');
-    if(btn){ btn.textContent = '🔊 Read Slide'; btn.style.background = '#F76604'; btn.disabled = false; }
-    if(_origChg) _origChg(d);
-  };
-})();
+}
 </script>
+
+
 </div><!-- /viewer -->
 
 <div id="comp">
@@ -1165,6 +1134,10 @@ var SLIDES=['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9', 's10', 's11', 
 var cur=1,total=32,answered={},scores={};
 
 function go(n){
+  // Stop voice on every slide change
+  window.speechSynthesis.cancel();
+  var vbtn = document.getElementById('dgc-voice-btn');
+  if(vbtn){ vbtn.textContent='🔊 Read Slide'; vbtn.style.background='#F76604'; vbtn.disabled=false; }
   document.getElementById(SLIDES[cur-1]).classList.remove('active');
   cur=Math.max(1,Math.min(n,total));
   document.getElementById(SLIDES[cur-1]).classList.add('active');
