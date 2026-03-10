@@ -1066,18 +1066,12 @@ function dgcStop(){
 }
 
 function dgcGetText(){
-  var parts = [];
-  var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
-  var node;
-  while(node = walker.nextNode()){
-    var p = node.parentElement; var skip = false;
-    while(p){
-      if(['SCRIPT','STYLE','BUTTON'].indexOf(p.tagName)>=0||p.id==='nav'||p.id==='comp'){skip=true;break;}
-      p=p.parentElement;
-    }
-    if(!skip){ var t=node.textContent.trim(); if(t.length>2) parts.push(t); }
-  }
-  return parts.join(' ').replace(/\s+/g,' ').trim().slice(0,500);
+  // Only read the currently active slide using SLIDES[cur-1]
+  var slideId = SLIDES[cur-1];
+  var slideEl = document.getElementById(slideId);
+  if(!slideEl) return '';
+  var text = slideEl.innerText || slideEl.textContent || '';
+  return text.replace(/\s+/g,' ').trim().slice(0, 600);
 }
 
 function dgcSpeak(text){
