@@ -850,19 +850,14 @@ async function sendAiMessage() {
   aiMessages.scrollTop = aiMessages.scrollHeight;
 
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        system: `You are the DGC Training Assistant, an expert in New Zealand hazardous substances regulations and HSNO Act compliance. You help workers at companies like Repco understand hazardous substances safety. Keep answers concise, practical and friendly. Focus on: GHS pictograms, Safety Data Sheets (SDS), HSNO classes (2.1 flammable gases, 3.1 flammable liquids, 8.1 corrosives, 6.1 toxics), PPE, storage requirements (AS 1940), spill response, and workplace safety. Use plain English suitable for shop floor workers. Start responses naturally without saying "Great question" or similar filler.`,
-        messages: [{ role: 'user', content: text }]
-      })
+      body: JSON.stringify({ message: text })
     });
     const data = await res.json();
     typingEl.remove();
-    const reply = data.content?.[0]?.text || "Sorry, I couldn't get a response. Please try again.";
+    const reply = data.reply || "Sorry, I couldn't get a response. Please try again.";
     addMsg(reply, 'bot');
     
     // Text to speech
