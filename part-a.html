@@ -1075,43 +1075,51 @@ function dgcGetText(){
 
 function dgcSpeak(text){
   window.speechSynthesis.cancel();
-  var sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
-  var idx = 0;
-  var keepAliveTimer = null;
+  var sentences = text.match(/[^.!?
+]+[.!?]+/g) || [text];
+  sentences = sentences.filter(function(s){ return s.trim().length > 2; });
+  if(!sentences.length) return;
+
   var voices = window.speechSynthesis.getVoices();
   var voice = voices.find(function(v){return v.lang==='en-NZ';})||
               voices.find(function(v){return v.lang==='en-AU';})||
               voices.find(function(v){return v.lang.indexOf('en')===0;})||voices[0];
+
   _dgcPlaying = true;
   var btn = document.getElementById('dgc-voice-btn');
   if(btn){btn.textContent='⏹ Stop';btn.style.background='#c0392b';btn.disabled=false;}
 
-  // Chrome bug workaround: resume every 10s to prevent cutoff
-  keepAliveTimer = setInterval(function(){
-    if(!_dgcPlaying){ clearInterval(keepAliveTimer); return; }
-    window.speechSynthesis.pause();
-    window.speechSynthesis.resume();
-  }, 10000);
+  var i = 0;
+  // Chrome resume hack - must call resume frequently
+  var timer = setInterval(function(){
+    if(!_dgcPlaying){ clearInterval(timer); return; }
+    if(window.speechSynthesis.paused) window.speechSynthesis.resume();
+  }, 250);
 
-  function speakNext(){
-    if(!_dgcPlaying || idx >= sentences.length){
-      clearInterval(keepAliveTimer);
+  function next(){
+    if(!_dgcPlaying || i >= sentences.length){
+      clearInterval(timer);
       dgcStop();
       return;
     }
-    var s = sentences[idx].trim();
-    if(!s){ idx++; speakNext(); return; }
-    var utt = new SpeechSynthesisUtterance(s);
-    utt.rate=0.88; utt.pitch=1.05; utt.volume=1.0;
-    if(voice) utt.voice=voice;
-    utt.onend = function(){ idx++; speakNext(); };
-    utt.onerror = function(){ idx++; speakNext(); };
-    window.speechSynthesis.speak(utt);
+    // Small delay between sentences for natural pacing
+    setTimeout(function(){
+      if(!_dgcPlaying){ clearInterval(timer); return; }
+      var utt = new SpeechSynthesisUtterance(sentences[i].trim());
+      utt.rate = 0.85;
+      utt.pitch = 1.05;
+      utt.volume = 1.0;
+      if(voice) utt.voice = voice;
+      utt.onend = function(){ i++; next(); };
+      utt.onerror = function(e){ 
+        console.log('TTS error:', e.error, 'sentence:', i);
+        i++; next(); 
+      };
+      window.speechSynthesis.speak(utt);
+    }, i === 0 ? 0 : 300);
   }
-  speakNext();
+  next();
 }
-
-var _dgcKeepAlive = null; // track for cleanup on stop
 
 async function dgcPlay(){
   var slideNum = cur; // capture current slide number
