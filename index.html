@@ -539,7 +539,7 @@ function loadSlide(num){
   document.getElementById('btn-prev').disabled=num===1;
   const isLast=num===c.slides;
   document.getElementById('btn-next').textContent=isLast?'Complete Module ✓':'Next →';
-  const frame=document.getElementById('player-frame'); if(c.id==='part-a'){frame.src='/part-a.html';}else if(c.id==='part-b'){frame.src='/part-b.html';}else{frame.srcdoc=buildSlidePage(c,num);}
+  const frame=document.getElementById('player-frame'); frame.srcdoc=buildSlidePage(c,num);
   saveProgress(c.id,num,'in_progress');
 }
 
@@ -557,7 +557,8 @@ function buildSlidePage(course,slideNum){
     <div class="num">${slideNum}</div>
     <h2>${course.title}</h2>
     <div class="sub">${course.subtitle} &nbsp;·&nbsp; Slide ${slideNum} of ${course.slides}</div>
-    <div class="hint">📁 Upload your <strong>${course.id === 'part-a' ? 'Part A' : 'Part B'} SCORM ZIP</strong> to the <strong>/courses/</strong> folder on Vercel and the real slides will display here automatically.</div>
+    <a href="/${course.id === 'part-a' ? 'part-a.html' : 'part-b.html'}" target="_blank" style="display:inline-block;margin-top:20px;background:#F76604;color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-family:Barlow Condensed,sans-serif;font-size:18px;font-weight:700;letter-spacing:0.5px;">▶ Launch Training Module</a>
+    <p style="margin-top:12px;color:#999;font-size:13px;">Opens in a new tab</p>
   </div></body></html>`;
 }
 
