@@ -1075,19 +1075,27 @@ function dgcGetText(){
 
 function dgcSpeak(text){
   window.speechSynthesis.cancel();
-  var utt = new SpeechSynthesisUtterance(text);
-  utt.rate=0.88; utt.pitch=1.05; utt.volume=1.0;
-  var voices=window.speechSynthesis.getVoices();
-  var voice=voices.find(function(v){return v.lang==='en-NZ';})||
-            voices.find(function(v){return v.lang==='en-AU';})||
-            voices.find(function(v){return v.lang.indexOf('en')===0;})||voices[0];
-  if(voice) utt.voice=voice;
-  _dgcPlaying=true;
-  var btn=document.getElementById('dgc-voice-btn');
+  // Split into sentences so browser doesn't cut off long text
+  var sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+  var idx = 0;
+  var voices = window.speechSynthesis.getVoices();
+  var voice = voices.find(function(v){return v.lang==='en-NZ';})||
+              voices.find(function(v){return v.lang==='en-AU';})||
+              voices.find(function(v){return v.lang.indexOf('en')===0;})||voices[0];
+  _dgcPlaying = true;
+  var btn = document.getElementById('dgc-voice-btn');
   if(btn){btn.textContent='⏹ Stop';btn.style.background='#c0392b';btn.disabled=false;}
-  utt.onend=function(){dgcStop();};
-  utt.onerror=function(){dgcStop();};
-  window.speechSynthesis.speak(utt);
+
+  function speakNext(){
+    if(!_dgcPlaying || idx >= sentences.length){ dgcStop(); return; }
+    var utt = new SpeechSynthesisUtterance(sentences[idx].trim());
+    utt.rate=0.88; utt.pitch=1.05; utt.volume=1.0;
+    if(voice) utt.voice=voice;
+    utt.onend = function(){ idx++; speakNext(); };
+    utt.onerror = function(){ idx++; speakNext(); };
+    window.speechSynthesis.speak(utt);
+  }
+  speakNext();
 }
 
 async function dgcPlay(){
