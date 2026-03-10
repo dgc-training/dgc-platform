@@ -437,11 +437,15 @@ async function signOut(){ await sb.auth.signOut(); currentUser=null; currentProf
 
 async function loadProfile(){
   if(!currentUser) return;
-  let {data:profile}=await sb.from('profiles').select('*').eq('id',currentUser.id).single();
+  let {data:profile, error}=await sb.from('profiles').select('*').eq('id',currentUser.id).single();
   if(!profile){
     const meta=currentUser.user_metadata||{};
     profile={id:currentUser.id,full_name:meta.full_name||currentUser.email.split('@')[0],organisation:meta.organisation||'',role:'worker'};
-    await sb.from('profiles').upsert(profile);
+    const {error:upsertError}=await sb.from('profiles').upsert(profile);
+    if(upsertError) console.error('Profile upsert error:', upsertError);
+    // Re-read after upsert
+    const {data:freshProfile}=await sb.from('profiles').select('*').eq('id',currentUser.id).single();
+    if(freshProfile) profile=freshProfile;
   }
   currentProfile=profile;
   const name=profile.full_name||'User';
