@@ -447,6 +447,7 @@ async function loadProfile(){
     const {data:freshProfile}=await sb.from('profiles').select('*').eq('id',currentUser.id).single();
     if(freshProfile) profile=freshProfile;
   }
+  console.log('Profile loaded:', JSON.stringify(profile));
   currentProfile=profile;
   const name=profile.full_name||'User';
   const initials=name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
@@ -504,7 +505,7 @@ function renderCourseCards(){
             <span>📋 ${course.slides} slides</span>
             <span>⏱ ${course.duration}</span>
             <span>🏷 HSNO ${course.hsno}</span>
-            ${score!==null?`<span>✅ ${score}%</span>`:''}
+            ${(score!==null&&score!==undefined)?`<span>✅ ${score}%</span>`:''}
           </div>
           <button class="btn-course ${bClass}" onclick="event.stopPropagation();openCourse('${course.id}')">${bText}</button>
         </div>
