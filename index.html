@@ -1164,7 +1164,7 @@ init().catch(e=>{ console.error('Init error:',e); hideLoading(); showPage('login
       <h3>DGC Training Assistant</h3>
       <p>Ask me anything about hazardous substances</p>
     </div>
-    <button id="ai-voice-toggle" onclick="toggleAiVoice()" title="Toggle voice" style="background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:rgba(255,255,255,0.45);border-radius:6px;padding:4px 10px;cursor:pointer;font-size:14px;margin-right:4px;">🔇</button>
+    <button id="ai-stop-btn" onclick="stopSpeech()" style="display:none;background:#ef4444;border:none;color:white;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:13px;font-weight:600;margin-right:6px;">⏹ Stop</button>
     <button class="ai-close" id="ai-close">×</button>
   </div>
   <div class="ai-messages" id="ai-messages">
@@ -1191,13 +1191,6 @@ init().catch(e=>{ console.error('Init error:',e); hideLoading(); showPage('login
 // ─── AI ASSISTANT ───
 const aiFab = document.getElementById('ai-fab');
 const aiPanel = document.getElementById('ai-panel');
-let aiVoiceOn = false; // voice OFF by default
-function toggleAiVoice(){
-  aiVoiceOn = !aiVoiceOn;
-  const btn = document.getElementById('ai-voice-toggle');
-  if(aiVoiceOn){ btn.textContent='🔊'; btn.style.color='white'; btn.style.background='rgba(247,102,4,0.4)'; }
-  else { window.speechSynthesis.cancel(); btn.textContent='🔇'; btn.style.color='rgba(255,255,255,0.45)'; btn.style.background='rgba(255,255,255,0.1)'; }
-}
 const aiClose = document.getElementById('ai-close');
 const aiMessages = document.getElementById('ai-messages');
 const aiInput = document.getElementById('ai-input');
@@ -1215,12 +1208,46 @@ aiFab.addEventListener('click', () => {
     aiFab.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>';
   }
 });
-aiClose.addEventListener('click', () => { window.speechSynthesis.cancel(); aiPanel.classList.remove('open'); aiFab.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>'; });
+aiClose.addEventListener('click', () => { stopSpeech(); aiPanel.classList.remove('open'); aiFab.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>'; });
 
 // Suggestion chips
 aiSuggestions.querySelectorAll('.ai-chip').forEach(chip => {
   chip.addEventListener('click', () => { aiInput.value = chip.textContent; sendAiMessage(); });
 });
+
+// ─── VOICE ───
+let currentUtt = null;
+
+function speakText(text) {
+  if(!('speechSynthesis' in window)) return;
+  // Cancel anything currently playing
+  window.speechSynthesis.cancel();
+  // Clean text - first 2 sentences only
+  const clean = text.replace(/[*#\-]/g, '').replace(/\n+/g, ' ').trim();
+  const sentences = clean.match(/[^.!?]+[.!?]+/g) || [clean];
+  const short = sentences.slice(0, 2).join(' ').trim();
+  currentUtt = new SpeechSynthesisUtterance(short);
+  currentUtt.rate = 1.1;
+  currentUtt.pitch = 1.0;
+  // Wait for voices to load
+  const trySpeak = () => {
+    const voices = window.speechSynthesis.getVoices();
+    const voice = voices.find(v => v.lang === 'en-NZ') || voices.find(v => v.lang.startsWith('en-')) || voices[0];
+    if(voice) currentUtt.voice = voice;
+    document.getElementById('ai-stop-btn').style.display = 'inline-block';
+    currentUtt.onend = () => { document.getElementById('ai-stop-btn').style.display = 'none'; };
+    currentUtt.onerror = () => { document.getElementById('ai-stop-btn').style.display = 'none'; };
+    window.speechSynthesis.speak(currentUtt);
+  };
+  if(window.speechSynthesis.getVoices().length > 0) { trySpeak(); }
+  else { window.speechSynthesis.onvoiceschanged = trySpeak; }
+}
+
+function stopSpeech() {
+  window.speechSynthesis.cancel();
+  currentUtt = null;
+  document.getElementById('ai-stop-btn').style.display = 'none';
+}
 
 // Send message
 async function sendAiMessage() {
@@ -1249,20 +1276,7 @@ async function sendAiMessage() {
     typingEl.remove();
     const reply = data.reply || "Sorry, I couldn't get a response. Please try again.";
     addMsg(reply, 'bot');
-    
-    // Text to speech - only if voice is ON
-    if(aiVoiceOn && 'speechSynthesis' in window) {
-      window.speechSynthesis.cancel();
-      const clean = reply.replace(/[*#\-]/g,'').replace(/\n+/g,' ');
-      const sentences = clean.match(/[^.!?]+[.!?]+/g)||[];
-      const shortReply = sentences.slice(0,2).join(' ').trim() || clean.slice(0,120);
-      const utt = new SpeechSynthesisUtterance(shortReply);
-      utt.rate = 1.1; utt.pitch = 1.0;
-      const voices = window.speechSynthesis.getVoices();
-      const nzVoice = voices.find(v=>v.lang==='en-NZ')||voices.find(v=>v.lang.startsWith('en'));
-      if(nzVoice) utt.voice = nzVoice;
-      window.speechSynthesis.speak(utt);
-    }
+    speakText(reply);
   } catch(e) {
     typingEl.remove();
     addMsg('Sorry, I had trouble connecting. Please check your internet and try again.', 'bot');
