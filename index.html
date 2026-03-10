@@ -352,6 +352,7 @@
       <div class="player-controls">
         <button class="ctrl-btn" id="btn-prev" onclick="prevSlide()">← Previous</button>
         <div class="slide-counter">Slide <span id="current-slide">1</span> of <span id="total-slides">1</span></div>
+        <button id="slide-voice-btn" onclick="toggleSlideVoice()" title="Read slide aloud" style="background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.4);color:white;border-radius:8px;padding:10px 18px;cursor:pointer;font-size:15px;font-family:'Barlow',sans-serif;">🔊 Read Slide</button>
         <button class="ctrl-btn primary" id="btn-next" onclick="nextSlide()">Next →</button>
       </div>
     </div>
@@ -1049,6 +1050,43 @@ function exportReport(){
   showToast('Report exported!','success');
 }
 
+// ─── SLIDE VOICE ───
+let slideVoicePlaying = false;
+
+function toggleSlideVoice() {
+  if(slideVoicePlaying) {
+    window.speechSynthesis.cancel();
+    slideVoicePlaying = false;
+    const btn = document.getElementById('slide-voice-btn');
+    if(btn) btn.innerHTML = '🔊 Read Slide';
+    return;
+  }
+  // Try to get text from iframe
+  let slideText = '';
+  try {
+    const iframe = document.getElementById('player-frame');
+    const iDoc = iframe.contentDocument || iframe.contentWindow.document;
+    slideText = iDoc.body.innerText || iDoc.body.textContent || '';
+    slideText = slideText.replace(/\s+/g,' ').trim().slice(0, 400);
+  } catch(e) {
+    slideText = 'Slide ' + document.getElementById('current-slide').textContent + ' of ' + document.getElementById('total-slides').textContent;
+  }
+  if(!slideText) return;
+  if(!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+  const utt = new SpeechSynthesisUtterance(slideText);
+  utt.rate = 1.0; utt.pitch = 1.0;
+  const voices = window.speechSynthesis.getVoices();
+  const voice = voices.find(v=>v.lang==='en-NZ')||voices.find(v=>v.lang.startsWith('en-'))||voices[0];
+  if(voice) utt.voice = voice;
+  slideVoicePlaying = true;
+  const btn = document.getElementById('slide-voice-btn');
+  if(btn) btn.innerHTML = '⏹ Stop';
+  utt.onend = ()=>{ slideVoicePlaying=false; if(btn) btn.innerHTML='🔊 Read Slide'; };
+  utt.onerror = ()=>{ slideVoicePlaying=false; if(btn) btn.innerHTML='🔊 Read Slide'; };
+  window.speechSynthesis.speak(utt);
+}
+
 function showPage(page){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.getElementById(`page-${page}`).classList.add('active');
@@ -1181,6 +1219,7 @@ init().catch(e=>{ console.error('Init error:',e); hideLoading(); showPage('login
     <button class="ai-mic" id="ai-mic" title="Voice input">
       <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
     </button>
+    <button id="ai-play-stop" onclick="togglePlayStop()" title="Play / Stop voice" style="width:40px;height:40px;background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.4);border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px;">▶</button>
     <button class="ai-send" id="ai-send">
       <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
     </button>
@@ -1219,36 +1258,47 @@ aiSuggestions.querySelectorAll('.ai-chip').forEach(chip => {
 });
 
 // ─── VOICE ───
-// Store utterance text to speak - actual speaking triggered by user clicking play
 let pendingTTS = '';
+let ttsPlaying = false;
 
 function speakText(text) {
-  if(!('speechSynthesis' in window)) return;
   const clean = text.replace(/[*#\-]/g,'').replace(/\n+/g,' ').trim();
   const sentences = clean.match(/[^.!?]+[.!?]+/g)||[clean];
   pendingTTS = sentences.slice(0,2).join(' ').trim();
-  playTTS();
+  setPlayStopBtn(false);
 }
 
-function playTTS() {
-  if(!pendingTTS) return;
+function togglePlayStop() {
+  if(ttsPlaying) { stopSpeech(); } else { playTTS(); }
+}
+
+function playTTS(customText) {
+  const textToSpeak = customText || pendingTTS;
+  if(!textToSpeak || !('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
-  const utt = new SpeechSynthesisUtterance(pendingTTS);
+  const utt = new SpeechSynthesisUtterance(textToSpeak);
   utt.rate = 1.1; utt.pitch = 1.0;
   const voices = window.speechSynthesis.getVoices();
   const voice = voices.find(v=>v.lang==='en-NZ')||voices.find(v=>v.lang.startsWith('en-'))||voices[0];
   if(voice) utt.voice = voice;
-  const btn = document.getElementById('ai-stop-btn');
-  if(btn){ btn.textContent='⏹ Stop'; btn.style.background='rgba(239,68,68,0.3)'; btn.style.borderColor='#ef4444'; btn.onclick = stopSpeech; }
-  utt.onend = ()=>{ pendingTTS=''; if(btn){ btn.textContent='▶ Play'; btn.style.background='rgba(34,197,94,0.3)'; btn.style.borderColor='#22c55e'; btn.onclick=playTTS; } };
+  ttsPlaying = true;
+  setPlayStopBtn(true);
+  utt.onend = ()=>{ ttsPlaying=false; setPlayStopBtn(false); };
+  utt.onerror = ()=>{ ttsPlaying=false; setPlayStopBtn(false); };
   window.speechSynthesis.speak(utt);
 }
 
 function stopSpeech() {
   window.speechSynthesis.cancel();
-  pendingTTS = '';
-  const btn = document.getElementById('ai-stop-btn');
-  if(btn){ btn.textContent='▶ Play'; btn.style.background='rgba(34,197,94,0.3)'; btn.style.borderColor='#22c55e'; btn.onclick=playTTS; }
+  ttsPlaying = false;
+  setPlayStopBtn(false);
+}
+
+function setPlayStopBtn(playing) {
+  const btn = document.getElementById('ai-play-stop');
+  if(!btn) return;
+  if(playing) { btn.textContent='⏹'; btn.style.background='rgba(239,68,68,0.25)'; btn.style.borderColor='rgba(239,68,68,0.6)'; }
+  else { btn.textContent='▶'; btn.style.background='rgba(34,197,94,0.15)'; btn.style.borderColor='rgba(34,197,94,0.4)'; }
 }
 
 // Send message
@@ -1294,17 +1344,6 @@ async function sendAiMessage() {
 }
 
 function addMsg(text, type) {
-  // If bot message, add play button inline
-  if(type === 'bot') {
-    const div = document.createElement('div');
-    div.className = 'ai-msg bot';
-    div.innerHTML = text.replace(/\n/g,'<br>') + 
-      '<br><button onclick="playTTS()" style="margin-top:6px;background:rgba(34,197,94,0.2);border:1px solid #22c55e;color:#22c55e;border-radius:6px;padding:3px 10px;cursor:pointer;font-size:12px;">▶ Play</button>';
-    const msgs = document.getElementById('ai-messages');
-    msgs.appendChild(div);
-    msgs.scrollTop = msgs.scrollHeight;
-    return;
-  }
   const el = document.createElement('div');
   el.className = `ai-msg ${type}`;
   el.textContent = text;
