@@ -586,69 +586,17 @@ function loadSlide(num){
   document.getElementById('btn-prev').disabled=num===1;
   const isLast=num===c.slides;
   document.getElementById('btn-next').textContent=isLast?'Complete Module ✓':'Next →';
-  const frame=document.getElementById('player-frame'); frame.srcdoc=buildSlidePage(c,num);
+  buildSlidePage(c,num); // loads src directly into iframe
   saveProgress(c.id,num,'in_progress');
 }
 
 function buildSlidePage(course,slideNum){
   const origin=window.location.origin;
-  return `<!DOCTYPE html><html><head><style>
-    body{margin:0;background:#f0f2ff;font-family:'Segoe UI',sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;}
-    .card{background:white;border-radius:14px;padding:48px 56px;text-align:center;box-shadow:0 4px 32px rgba(0,0,40,0.1);max-width:560px;width:90%;}
-    .num{background:#F76604;color:white;border-radius:50%;width:52px;height:52px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;margin:0 auto 20px;}
-    h2{color:#0D0040;font-size:22px;font-weight:700;margin-bottom:8px;}
-    .sub{color:#888;font-size:14px;margin-bottom:24px;}
-    .hint{background:#fff3e6;border:1px solid #F76604;border-radius:8px;padding:14px 18px;font-size:13px;color:#b34d00;line-height:1.5;}
-    .hint strong{color:#F76604;}
-  
-  /* ─── ADMIN TABS ─── */
-  .admin-tabs { display:flex; gap:8px; margin:24px 0 0; flex-wrap:wrap; }
-  .admin-tab { background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); color:var(--gray-400); border-radius:8px; padding:10px 18px; font-family:'Barlow',sans-serif; font-size:14px; font-weight:500; cursor:pointer; transition:all 0.2s; }
-  .admin-tab:hover { background:rgba(255,255,255,0.1); color:white; }
-  .admin-tab.active { background:var(--orange); border-color:var(--orange); color:white; }
-  .admin-tab-content { display:none; margin-top:20px; }
-  .admin-tab-content.active { display:block; }
-  .assign-panel { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:28px; }
-  .assign-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:16px; }
-  .assign-col { display:flex; flex-direction:column; }
-
-  /* ─── LEADERBOARD ─── */
-  .lb-row { display:flex; align-items:center; gap:16px; padding:14px 18px; background:rgba(255,255,255,0.04); border-radius:10px; margin-bottom:8px; border:1px solid rgba(255,255,255,0.06); }
-  .lb-rank { font-family:'Barlow Condensed',sans-serif; font-size:24px; font-weight:800; width:36px; color:var(--gray-400); }
-  .lb-rank.gold { color:#FFD700; }
-  .lb-rank.silver { color:#C0C0C0; }
-  .lb-rank.bronze { color:#CD7F32; }
-  .lb-name { flex:1; font-weight:600; }
-  .lb-org { color:var(--gray-400); font-size:13px; }
-  .lb-score { background:var(--orange); color:white; border-radius:20px; padding:4px 14px; font-size:13px; font-weight:600; font-family:'Barlow Condensed',sans-serif; }
-  .lb-badge { font-size:18px; }
-
-  /* ─── REPORTS ─── */
-  .reports-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px; }
-  .report-card { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:20px; }
-  .report-card h4 { color:var(--orange); font-family:'Barlow Condensed',sans-serif; font-size:16px; margin-bottom:12px; }
-  .report-item { display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.06); font-size:13px; }
-  .report-item:last-child { border:none; }
-  .report-val { color:var(--orange); font-weight:600; }
-
-  /* ─── DUE DATE BADGE ─── */
-  .due-badge { display:inline-block; padding:3px 10px; border-radius:12px; font-size:11px; font-weight:600; margin-left:8px; }
-  .due-ok { background:rgba(34,197,94,0.15); color:#22c55e; border:1px solid rgba(34,197,94,0.3); }
-  .due-soon { background:rgba(247,102,4,0.15); color:var(--orange); border:1px solid rgba(247,102,4,0.3); }
-  .due-overdue { background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.3); }
-
-  /* ─── WORKER ROW ACTIONS ─── */
-  .worker-action { background:rgba(247,102,4,0.15); border:1px solid rgba(247,102,4,0.3); color:var(--orange); border-radius:6px; padding:4px 10px; font-size:12px; cursor:pointer; transition:background 0.2s; }
-  .worker-action:hover { background:rgba(247,102,4,0.3); }
-
-</style></head><body>
-  <div class="card">
-    <div class="num">${slideNum}</div>
-    <h2>${course.title}</h2>
-    <div class="sub">${course.subtitle} &nbsp;·&nbsp; Slide ${slideNum} of ${course.slides}</div>
-    <a href="${origin}/${course.id === 'part-a' ? 'part-a.html' : 'part-b.html'}" target="_blank" style="display:inline-block;margin-top:20px;background:#F76604;color:white;padding:14px 32px;border-radius:8px;text-decoration:none;font-family:Barlow Condensed,sans-serif;font-size:18px;font-weight:700;letter-spacing:0.5px;">▶ Launch Training Module</a>
-    <p style="margin-top:12px;color:#999;font-size:13px;">Opens in a new tab</p>
-  </div></body></html>`;
+  const htmlFile = course.id === 'part-a' ? 'part-a.html' : 'part-b.html';
+  // Load the SCORM directly in the iframe
+  document.getElementById('player-frame').src = origin + '/' + htmlFile;
+  // Return minimal placeholder while loading
+  return null;
 }
 
 function goToSlide(n){ loadSlide(n); }
@@ -1054,25 +1002,34 @@ function exportReport(){
 let slideVoicePlaying = false;
 
 function toggleSlideVoice() {
+  const btn = document.getElementById('slide-voice-btn');
   if(slideVoicePlaying) {
     window.speechSynthesis.cancel();
     slideVoicePlaying = false;
-    const btn = document.getElementById('slide-voice-btn');
-    if(btn) btn.innerHTML = '🔊 Read Slide';
+    if(btn) { btn.innerHTML='🔊 Read Slide'; btn.style.background='rgba(34,197,94,0.15)'; btn.style.borderColor='rgba(34,197,94,0.4)'; }
     return;
   }
-  // Try to get text from iframe
+  // Try reading iframe text (same-origin only)
   let slideText = '';
   try {
     const iframe = document.getElementById('player-frame');
     const iDoc = iframe.contentDocument || iframe.contentWindow.document;
-    slideText = iDoc.body.innerText || iDoc.body.textContent || '';
-    slideText = slideText.replace(/\s+/g,' ').trim().slice(0, 400);
+    // Get visible text, skip nav/buttons
+    const body = iDoc.body;
+    const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT);
+    let node, texts = [];
+    while(node = walker.nextNode()) {
+      const t = node.textContent.trim();
+      if(t.length > 2) texts.push(t);
+    }
+    slideText = texts.join(' ').replace(/\s+/g,' ').trim().slice(0, 500);
   } catch(e) {
-    slideText = 'Slide ' + document.getElementById('current-slide').textContent + ' of ' + document.getElementById('total-slides').textContent;
+    // Cross-origin fallback - use course info
+    if(currentCourse) {
+      slideText = 'Slide ' + currentSlide + ' of ' + currentCourse.slides + '. ' + currentCourse.title + '. ' + currentCourse.subtitle + '.';
+    }
   }
-  if(!slideText) return;
-  if(!('speechSynthesis' in window)) return;
+  if(!slideText || !('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
   const utt = new SpeechSynthesisUtterance(slideText);
   utt.rate = 1.0; utt.pitch = 1.0;
@@ -1080,10 +1037,9 @@ function toggleSlideVoice() {
   const voice = voices.find(v=>v.lang==='en-NZ')||voices.find(v=>v.lang.startsWith('en-'))||voices[0];
   if(voice) utt.voice = voice;
   slideVoicePlaying = true;
-  const btn = document.getElementById('slide-voice-btn');
-  if(btn) btn.innerHTML = '⏹ Stop';
-  utt.onend = ()=>{ slideVoicePlaying=false; if(btn) btn.innerHTML='🔊 Read Slide'; };
-  utt.onerror = ()=>{ slideVoicePlaying=false; if(btn) btn.innerHTML='🔊 Read Slide'; };
+  if(btn) { btn.innerHTML='⏹ Stop'; btn.style.background='rgba(239,68,68,0.2)'; btn.style.borderColor='rgba(239,68,68,0.5)'; }
+  utt.onend = ()=>{ slideVoicePlaying=false; if(btn){ btn.innerHTML='🔊 Read Slide'; btn.style.background='rgba(34,197,94,0.15)'; btn.style.borderColor='rgba(34,197,94,0.4)'; } };
+  utt.onerror = ()=>{ slideVoicePlaying=false; if(btn){ btn.innerHTML='🔊 Read Slide'; btn.style.background='rgba(34,197,94,0.15)'; btn.style.borderColor='rgba(34,197,94,0.4)'; } };
   window.speechSynthesis.speak(utt);
 }
 
@@ -1202,7 +1158,6 @@ init().catch(e=>{ console.error('Init error:',e); hideLoading(); showPage('login
       <h3>DGC Training Assistant</h3>
       <p>Ask me anything about hazardous substances</p>
     </div>
-    <button id="ai-stop-btn" onclick="stopSpeech()" style="background:rgba(239,68,68,0.3);border:1px solid #ef4444;color:white;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:13px;font-weight:600;margin-right:6px;">⏹ Stop</button>
     <button class="ai-close" id="ai-close">×</button>
   </div>
   <div class="ai-messages" id="ai-messages">
@@ -1265,7 +1220,8 @@ function speakText(text) {
   const clean = text.replace(/[*#\-]/g,'').replace(/\n+/g,' ').trim();
   const sentences = clean.match(/[^.!?]+[.!?]+/g)||[clean];
   pendingTTS = sentences.slice(0,2).join(' ').trim();
-  setPlayStopBtn(false);
+  // Auto-play since it's triggered from send button (user gesture chain)
+  playTTS();
 }
 
 function togglePlayStop() {
