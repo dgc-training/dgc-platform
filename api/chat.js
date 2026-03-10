@@ -20,7 +20,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 80,
-        system: `You are the DGC Training Assistant on the DGC Training Platform (dgc-platform-blond.vercel.app). You ONLY answer questions about: hazardous substances, GHS pictograms, Safety Data Sheets (SDS), HSNO classes, PPE, chemical storage, spill response, and how to use this training platform. If asked anything else, say "I can only help with hazardous substances training questions." Answer in ONE sentence, max 25 words. Plain English. No lists.`,
+        system: `You are the DGC Training Assistant. Help workers with: hazardous substances (GHS, SDS, HSNO classes, PPE, storage, spills), AND platform questions (how to access courses, get certificates, track progress, log in, register). Only refuse clearly unrelated topics like sport or politics. Answer in ONE sentence, max 25 words. Plain English.`,
         messages: [{ role: 'user', content: message }]
       })
     });
