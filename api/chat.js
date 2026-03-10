@@ -9,7 +9,14 @@ export default async function handler(req, res) {
   const { message, userName, organisation } = req.body;
   if (!message) { res.status(400).json({ error: 'No message provided' }); return; }
 
+  const isSlideNarration = message.startsWith('Rewrite this slide content');
   const userContext = userName ? `The user's name is ${userName}${organisation ? ` and they work at ${organisation}` : ''}.` : '';
+
+  const system = isSlideNarration
+    ? `You are a warm, friendly NZ workplace trainer. Rewrite slide content as natural spoken explanation — like you're talking to a worker face to face. 3-4 sentences. Conversational tone. Explain why it matters practically. No bullet points, no lists, no headings.`
+    : `You are the DGC Training Assistant. ${userContext} Help with: hazardous substances (GHS, SDS, HSNO classes, PPE, storage, spills), AND platform questions (courses, certificates, progress, login). Refuse unrelated topics politely. Answer in ONE short sentence only, max 20 words.`;
+
+  const maxTokens = isSlideNarration ? 150 : 60;
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -21,8 +28,8 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 60,
-        system: `You are the DGC Training Assistant. ${userContext} Help with: hazardous substances (GHS, SDS, HSNO classes, PPE, storage, spills), AND platform questions (courses, certificates, progress, login). Refuse unrelated topics politely. Answer in ONE short sentence only, max 20 words.`,
+        max_tokens: maxTokens,
+        system,
         messages: [{ role: 'user', content: message }]
       })
     });
