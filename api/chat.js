@@ -19,8 +19,8 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 600,
-        system: `You are the DGC Training Assistant for NZ hazardous substances training. Give SHORT answers — 1-2 sentences only. Be direct and practical. No bullet points, no lists, no headers. Just a plain conversational answer a shop floor worker can act on immediately. Focus on: GHS pictograms, SDS sheets, HSNO classes (2.1, 3.1, 8.1, 6.1), PPE, storage, spill response.`,
+        max_tokens: 80,
+        system: `Answer in ONE sentence, max 25 words, plain English. No lists or bullet points.`,
         messages: [{ role: 'user', content: message }]
       })
     });
