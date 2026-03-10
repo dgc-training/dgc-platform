@@ -1041,13 +1041,18 @@ strong{color:var(--dark);}
 
 </div><!-- /sc -->
 <div id="nav" style="display:flex;align-items:center;gap:12px;">
-  <button class="nbtn" id="pb-btn" onclick="chg(-1)" disabled>← Previous</button>
+  <button class="nbtn" id="pb-btn" onclick="window.speechSynthesis.cancel();dgcReset();chg(-1);" disabled>← Previous</button>
   <button id="dgc-voice-btn" onclick="dgcToggleVoice()" style="background:#F76604;border:none;color:white;border-radius:8px;padding:10px 24px;cursor:pointer;font-size:15px;font-weight:700;font-family:inherit;flex:1;max-width:200px;">🔊 Read Slide</button>
-  <button class="nbtn" id="nx-btn" onclick="chg(1)">Next →</button>
+  <button class="nbtn" id="nx-btn" onclick="window.speechSynthesis.cancel();dgcReset();chg(1);">Next →</button>
 </div>
 
 <script>
 var _dgcPlaying = false;
+window.dgcReset = function(){
+  _dgcPlaying = false;
+  var btn=document.getElementById('dgc-voice-btn');
+  if(btn){btn.textContent='🔊 Read Slide';btn.style.background='#F76604';btn.disabled=false;}
+};
 
 window.dgcToggleVoice = function(){
   if(_dgcPlaying){ dgcStop(); } else { dgcPlay(); }
@@ -1134,10 +1139,6 @@ var SLIDES=['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's9', 's10', 's11', 
 var cur=1,total=32,answered={},scores={};
 
 function go(n){
-  // Stop voice on every slide change
-  window.speechSynthesis.cancel();
-  var vbtn = document.getElementById('dgc-voice-btn');
-  if(vbtn){ vbtn.textContent='🔊 Read Slide'; vbtn.style.background='#F76604'; vbtn.disabled=false; }
   document.getElementById(SLIDES[cur-1]).classList.remove('active');
   cur=Math.max(1,Math.min(n,total));
   document.getElementById(SLIDES[cur-1]).classList.add('active');
