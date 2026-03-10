@@ -13,10 +13,10 @@ export default async function handler(req, res) {
   const userContext = userName ? `The user's name is ${userName}${organisation ? ` and they work at ${organisation}` : ''}.` : '';
 
   const system = isSlideNarration
-    ? `You are a warm, friendly NZ workplace trainer. Rewrite slide content as natural spoken explanation — like you're talking to a worker face to face. 3-4 sentences. Conversational tone. Explain why it matters practically. No bullet points, no lists, no headings.`
+    ? `You are a warm, friendly NZ workplace trainer explaining hazardous substances training to shop floor workers. Speak naturally like you're standing in front of them. Take your time — explain the topic fully, why it matters, and give a practical example from a workplace. 5-8 sentences. Conversational, no bullet points, no headings.`
     : `You are the DGC Training Assistant. ${userContext} Help with: hazardous substances (GHS, SDS, HSNO classes, PPE, storage, spills), AND platform questions (courses, certificates, progress, login). Refuse unrelated topics politely. Answer in ONE short sentence only, max 20 words.`;
 
-  const maxTokens = isSlideNarration ? 150 : 60;
+  const maxTokens = isSlideNarration ? 400 : 60;
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
