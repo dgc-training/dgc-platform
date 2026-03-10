@@ -1164,6 +1164,7 @@ init().catch(e=>{ console.error('Init error:',e); hideLoading(); showPage('login
       <h3>DGC Training Assistant</h3>
       <p>Ask me anything about hazardous substances</p>
     </div>
+    <button class="ai-stop" id="ai-stop" title="Stop speaking" style="display:none;background:rgba(255,255,255,0.2);border:none;color:white;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:13px;margin-right:6px;">⏹ Stop</button>
     <button class="ai-close" id="ai-close">×</button>
   </div>
   <div class="ai-messages" id="ai-messages">
@@ -1190,6 +1191,8 @@ init().catch(e=>{ console.error('Init error:',e); hideLoading(); showPage('login
 // ─── AI ASSISTANT ───
 const aiFab = document.getElementById('ai-fab');
 const aiPanel = document.getElementById('ai-panel');
+const aiStop = document.getElementById('ai-stop');
+if(aiStop) aiStop.addEventListener('click', () => { window.speechSynthesis.cancel(); aiStop.style.display='none'; });
 const aiClose = document.getElementById('ai-close');
 const aiMessages = document.getElementById('ai-messages');
 const aiInput = document.getElementById('ai-input');
@@ -1207,7 +1210,7 @@ aiFab.addEventListener('click', () => {
     aiFab.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>';
   }
 });
-aiClose.addEventListener('click', () => { aiPanel.classList.remove('open'); aiFab.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>'; });
+aiClose.addEventListener('click', () => { window.speechSynthesis.cancel(); if(aiStop) aiStop.style.display='none'; aiPanel.classList.remove('open'); aiFab.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>'; });
 
 // Suggestion chips
 aiSuggestions.querySelectorAll('.ai-chip').forEach(chip => {
@@ -1242,13 +1245,20 @@ async function sendAiMessage() {
     const reply = data.reply || "Sorry, I couldn't get a response. Please try again.";
     addMsg(reply, 'bot');
     
-    // Text to speech
+    // Text to speech - speak only first 2 sentences max
     if('speechSynthesis' in window) {
-      const utt = new SpeechSynthesisUtterance(reply.replace(/[*#]/g,''));
-      utt.rate = 1.0; utt.pitch = 1.0;
+      window.speechSynthesis.cancel();
+      const sentences = reply.replace(/[*#]/g,'').match(/[^.!?]+[.!?]+/g)||[];
+      const shortReply = sentences.slice(0,2).join(' ').trim() || reply.slice(0,150);
+      const utt = new SpeechSynthesisUtterance(shortReply);
+      utt.rate = 1.1; utt.pitch = 1.0;
       const voices = window.speechSynthesis.getVoices();
       const nzVoice = voices.find(v => v.lang === 'en-NZ') || voices.find(v => v.lang.startsWith('en'));
       if(nzVoice) utt.voice = nzVoice;
+      const stopBtn = document.getElementById('ai-stop');
+      if(stopBtn) stopBtn.style.display='inline-block';
+      utt.onend = () => { if(stopBtn) stopBtn.style.display='none'; };
+      utt.onerror = () => { if(stopBtn) stopBtn.style.display='none'; };
       window.speechSynthesis.speak(utt);
     }
   } catch(e) {
