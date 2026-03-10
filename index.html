@@ -441,9 +441,9 @@ async function loadProfile(){
   if(!profile){
     const meta=currentUser.user_metadata||{};
     profile={id:currentUser.id,full_name:meta.full_name||currentUser.email.split('@')[0],organisation:meta.organisation||'',role:'worker'};
-    const {error:upsertError}=await sb.from('profiles').upsert(profile);
-    if(upsertError) console.error('Profile upsert error:', upsertError);
-    // Re-read after upsert
+    // Only insert if truly doesn't exist - use insert not upsert to avoid overwriting role
+    await sb.from('profiles').insert(profile).select().single();
+    // Re-read to get actual stored value
     const {data:freshProfile}=await sb.from('profiles').select('*').eq('id',currentUser.id).single();
     if(freshProfile) profile=freshProfile;
   }
