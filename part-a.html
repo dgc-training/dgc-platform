@@ -1049,6 +1049,13 @@ strong{color:var(--dark);}
 <script>
 (function(){
   var playing = false;
+  var currentSlideId = '';
+
+  function getSlideId(){
+    // Use slide counter text as unique ID
+    var el = document.querySelector('#slide-num, .slide-counter, [data-slide]');
+    return el ? el.textContent : document.title;
+  }
 
   window.dgcToggleVoice = function(){
     if(playing){ dgcStop(); } else { dgcPlay(); }
@@ -1058,7 +1065,7 @@ strong{color:var(--dark);}
     window.speechSynthesis.cancel();
     playing = false;
     var btn = document.getElementById('dgc-voice-btn');
-    if(btn){ btn.textContent = '🔊 Read Slide'; btn.style.background = '#F76604'; }
+    if(btn){ btn.textContent = '🔊 Read Slide'; btn.style.background = '#F76604'; btn.disabled = false; }
   }
 
   function getSlideText(){
@@ -1072,65 +1079,66 @@ strong{color:var(--dark);}
         if(['SCRIPT','STYLE','BUTTON'].indexOf(p.tagName) >= 0 || p.id === 'nav' || p.id === 'comp'){ skip=true; break; }
         p = p.parentElement;
       }
-      if(!skip){
-        var t = node.textContent.trim();
-        if(t.length > 2) parts.push(t);
-      }
+      if(!skip){ var t = node.textContent.trim(); if(t.length > 2) parts.push(t); }
     }
-    return parts.join(' ').replace(/\s+/g,' ').trim().slice(0, 600);
+    return parts.join(' ').replace(/\s+/g,' ').trim().slice(0, 500);
   }
 
-  function speakText(text){
+  function speakNow(text, slideId){
     window.speechSynthesis.cancel();
     var utt = new SpeechSynthesisUtterance(text);
-    utt.rate = 0.85;   // slower — trainer pace
-    utt.pitch = 1.05;  // slightly warmer
+    utt.rate = 0.88;
+    utt.pitch = 1.05;
     utt.volume = 1.0;
     var voices = window.speechSynthesis.getVoices();
-    var voice = voices.find(function(v){ return v.lang === 'en-NZ'; }) ||
-                voices.find(function(v){ return v.lang === 'en-AU'; }) ||
-                voices.find(function(v){ return v.lang.indexOf('en') === 0; }) || voices[0];
+    var voice = voices.find(function(v){ return v.lang==='en-NZ'; }) ||
+                voices.find(function(v){ return v.lang==='en-AU'; }) ||
+                voices.find(function(v){ return v.lang.indexOf('en')===0; }) || voices[0];
     if(voice) utt.voice = voice;
     playing = true;
     var btn = document.getElementById('dgc-voice-btn');
-    if(btn){ btn.textContent = '⏹ Stop'; btn.style.background = '#c0392b'; }
-    utt.onend = function(){ dgcStop(); };
+    if(btn){ btn.textContent = '⏹ Stop'; btn.style.background = '#c0392b'; btn.disabled = false; }
+    utt.onend = function(){ if(currentSlideId === slideId) dgcStop(); };
     utt.onerror = function(){ dgcStop(); };
     window.speechSynthesis.speak(utt);
   }
 
   async function dgcPlay(){
+    var slideId = getSlideId();
+    currentSlideId = slideId;
     var rawText = getSlideText();
     if(!rawText) return;
 
     var btn = document.getElementById('dgc-voice-btn');
-    if(btn){ btn.textContent = '⏳ Preparing...'; btn.style.background = '#666'; btn.disabled = true; }
+    if(btn){ btn.textContent = '⏳ Preparing...'; btn.style.background = '#555'; btn.disabled = true; }
 
-    // Ask AI to rewrite as a trainer explanation
     try {
       var res = await fetch('/api/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {'Content-Type':'application/json'},
         body: JSON.stringify({
-          message: 'Rewrite this slide content as a warm, friendly trainer speaking to a worker. 3-4 sentences. Conversational, no bullet points, explain WHY it matters. Slide content: ' + rawText,
+          message: 'Rewrite this slide content as a trainer speaking to a worker. 2-3 sentences only. Warm and conversational. Slide: ' + rawText,
           userName: null, organisation: null
         })
       });
       var data = await res.json();
-      var explanation = data.reply || rawText;
-      if(btn) btn.disabled = false;
-      speakText(explanation);
+      // Only speak if still on same slide
+      if(currentSlideId === slideId){
+        speakNow(data.reply || rawText, slideId);
+      }
     } catch(e) {
-      // Fallback to raw text at slower rate
-      if(btn) btn.disabled = false;
-      speakText(rawText);
+      if(currentSlideId === slideId) speakNow(rawText, slideId);
     }
   }
 
-  // Stop when slide changes
+  // Override chg to ALWAYS stop before changing slide
   var _origChg = window.chg;
   window.chg = function(d){
-    dgcStop();
+    window.speechSynthesis.cancel();
+    playing = false;
+    currentSlideId = 'changing';
+    var btn = document.getElementById('dgc-voice-btn');
+    if(btn){ btn.textContent = '🔊 Read Slide'; btn.style.background = '#F76604'; btn.disabled = false; }
     if(_origChg) _origChg(d);
   };
 })();
