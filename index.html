@@ -1164,7 +1164,7 @@ init().catch(e=>{ console.error('Init error:',e); hideLoading(); showPage('login
       <h3>DGC Training Assistant</h3>
       <p>Ask me anything about hazardous substances</p>
     </div>
-    <button id="ai-stop-btn" onclick="stopSpeech()" style="display:none;background:#ef4444;border:none;color:white;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:13px;font-weight:600;margin-right:6px;">⏹ Stop</button>
+    <button id="ai-stop-btn" onclick="stopSpeech()" style="background:rgba(239,68,68,0.3);border:1px solid #ef4444;color:white;border-radius:6px;padding:5px 12px;cursor:pointer;font-size:13px;font-weight:600;margin-right:6px;">⏹ Stop</button>
     <button class="ai-close" id="ai-close">×</button>
   </div>
   <div class="ai-messages" id="ai-messages">
@@ -1219,42 +1219,38 @@ aiSuggestions.querySelectorAll('.ai-chip').forEach(chip => {
 });
 
 // ─── VOICE ───
-let ttsActive = false;
-let ttsWords = [];
-let ttsIndex = 0;
+// Store utterance text to speak - actual speaking triggered by user clicking play
+let pendingTTS = '';
 
 function speakText(text) {
   if(!('speechSynthesis' in window)) return;
-  stopSpeech();
   const clean = text.replace(/[*#\-]/g,'').replace(/\n+/g,' ').trim();
   const sentences = clean.match(/[^.!?]+[.!?]+/g)||[clean];
-  const short = sentences.slice(0,2).join(' ').trim();
-  // Split into individual words - speak one word at a time so cancel works instantly
-  ttsWords = short.split(' ').filter(w=>w.length>0);
-  ttsIndex = 0;
-  ttsActive = true;
-  const stopBtn = document.getElementById('ai-stop-btn');
-  if(stopBtn) stopBtn.style.display='inline-block';
+  pendingTTS = sentences.slice(0,2).join(' ').trim();
+  // Show play button in stop btn area
+  const btn = document.getElementById('ai-stop-btn');
+  if(btn){ btn.textContent='▶ Play'; btn.style.background='rgba(34,197,94,0.3)'; btn.style.borderColor='#22c55e'; btn.onclick = playTTS; }
+}
+
+function playTTS() {
+  if(!pendingTTS) return;
+  window.speechSynthesis.cancel();
+  const utt = new SpeechSynthesisUtterance(pendingTTS);
+  utt.rate = 1.1; utt.pitch = 1.0;
   const voices = window.speechSynthesis.getVoices();
   const voice = voices.find(v=>v.lang==='en-NZ')||voices.find(v=>v.lang.startsWith('en-'))||voices[0];
-  // Speak whole short text as one utterance but with a watchdog
-  const utt = new SpeechSynthesisUtterance(short);
-  utt.rate = 1.1; utt.pitch = 1.0;
   if(voice) utt.voice = voice;
-  utt.onend = ()=>{ ttsActive=false; if(stopBtn) stopBtn.style.display='none'; };
-  utt.onerror = ()=>{ ttsActive=false; if(stopBtn) stopBtn.style.display='none'; };
-  window.speechSynthesis.cancel();
-  setTimeout(()=>{ if(ttsActive) window.speechSynthesis.speak(utt); }, 50);
+  const btn = document.getElementById('ai-stop-btn');
+  if(btn){ btn.textContent='⏹ Stop'; btn.style.background='rgba(239,68,68,0.3)'; btn.style.borderColor='#ef4444'; btn.onclick = stopSpeech; }
+  utt.onend = ()=>{ pendingTTS=''; if(btn){ btn.textContent='▶ Play'; btn.style.background='rgba(34,197,94,0.3)'; btn.style.borderColor='#22c55e'; btn.onclick=playTTS; } };
+  window.speechSynthesis.speak(utt);
 }
 
 function stopSpeech() {
-  ttsActive = false;
-  // Call cancel multiple times - Chrome sometimes needs this
   window.speechSynthesis.cancel();
-  setTimeout(()=>window.speechSynthesis.cancel(), 50);
-  setTimeout(()=>window.speechSynthesis.cancel(), 150);
-  const stopBtn = document.getElementById('ai-stop-btn');
-  if(stopBtn) stopBtn.style.display='none';
+  pendingTTS = '';
+  const btn = document.getElementById('ai-stop-btn');
+  if(btn){ btn.textContent='▶ Play'; btn.style.background='rgba(34,197,94,0.3)'; btn.style.borderColor='#22c55e'; btn.onclick=playTTS; }
 }
 
 // Send message
