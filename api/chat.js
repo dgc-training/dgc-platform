@@ -6,8 +6,10 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') { res.status(200).end(); return; }
   if (req.method !== 'POST') { res.status(405).json({ error: 'Method not allowed' }); return; }
 
-  const { message } = req.body;
+  const { message, userName, organisation } = req.body;
   if (!message) { res.status(400).json({ error: 'No message provided' }); return; }
+
+  const userContext = userName ? `The user's name is ${userName}${organisation ? ` and they work at ${organisation}` : ''}.` : '';
 
   try {
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -19,8 +21,8 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 80,
-        system: `You are the DGC Training Assistant. Help workers with: hazardous substances (GHS, SDS, HSNO classes, PPE, storage, spills), AND platform questions (how to access courses, get certificates, track progress, log in, register). Only refuse clearly unrelated topics like sport or politics. Answer in ONE sentence, max 25 words. Plain English.`,
+        max_tokens: 60,
+        system: `You are the DGC Training Assistant. ${userContext} Help with: hazardous substances (GHS, SDS, HSNO classes, PPE, storage, spills), AND platform questions (courses, certificates, progress, login). Refuse unrelated topics politely. Answer in ONE short sentence only, max 20 words.`,
         messages: [{ role: 'user', content: message }]
       })
     });
