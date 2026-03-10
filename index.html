@@ -1188,6 +1188,9 @@ init().catch(e=>{ console.error('Init error:',e); hideLoading(); showPage('login
 </div>
 
 <script>
+// Kill any speech on load
+if('speechSynthesis' in window){ window.speechSynthesis.cancel(); }
+window.addEventListener('beforeunload', ()=>{ if('speechSynthesis' in window) window.speechSynthesis.cancel(); });
 // ─── AI ASSISTANT ───
 const aiFab = document.getElementById('ai-fab');
 const aiPanel = document.getElementById('ai-panel');
@@ -1216,37 +1219,42 @@ aiSuggestions.querySelectorAll('.ai-chip').forEach(chip => {
 });
 
 // ─── VOICE ───
-let currentUtt = null;
+let ttsActive = false;
+let ttsWords = [];
+let ttsIndex = 0;
 
 function speakText(text) {
   if(!('speechSynthesis' in window)) return;
-  // Cancel anything currently playing
+  stopSpeech();
+  const clean = text.replace(/[*#\-]/g,'').replace(/\n+/g,' ').trim();
+  const sentences = clean.match(/[^.!?]+[.!?]+/g)||[clean];
+  const short = sentences.slice(0,2).join(' ').trim();
+  // Split into individual words - speak one word at a time so cancel works instantly
+  ttsWords = short.split(' ').filter(w=>w.length>0);
+  ttsIndex = 0;
+  ttsActive = true;
+  const stopBtn = document.getElementById('ai-stop-btn');
+  if(stopBtn) stopBtn.style.display='inline-block';
+  const voices = window.speechSynthesis.getVoices();
+  const voice = voices.find(v=>v.lang==='en-NZ')||voices.find(v=>v.lang.startsWith('en-'))||voices[0];
+  // Speak whole short text as one utterance but with a watchdog
+  const utt = new SpeechSynthesisUtterance(short);
+  utt.rate = 1.1; utt.pitch = 1.0;
+  if(voice) utt.voice = voice;
+  utt.onend = ()=>{ ttsActive=false; if(stopBtn) stopBtn.style.display='none'; };
+  utt.onerror = ()=>{ ttsActive=false; if(stopBtn) stopBtn.style.display='none'; };
   window.speechSynthesis.cancel();
-  // Clean text - first 2 sentences only
-  const clean = text.replace(/[*#\-]/g, '').replace(/\n+/g, ' ').trim();
-  const sentences = clean.match(/[^.!?]+[.!?]+/g) || [clean];
-  const short = sentences.slice(0, 2).join(' ').trim();
-  currentUtt = new SpeechSynthesisUtterance(short);
-  currentUtt.rate = 1.1;
-  currentUtt.pitch = 1.0;
-  // Wait for voices to load
-  const trySpeak = () => {
-    const voices = window.speechSynthesis.getVoices();
-    const voice = voices.find(v => v.lang === 'en-NZ') || voices.find(v => v.lang.startsWith('en-')) || voices[0];
-    if(voice) currentUtt.voice = voice;
-    document.getElementById('ai-stop-btn').style.display = 'inline-block';
-    currentUtt.onend = () => { document.getElementById('ai-stop-btn').style.display = 'none'; };
-    currentUtt.onerror = () => { document.getElementById('ai-stop-btn').style.display = 'none'; };
-    window.speechSynthesis.speak(currentUtt);
-  };
-  if(window.speechSynthesis.getVoices().length > 0) { trySpeak(); }
-  else { window.speechSynthesis.onvoiceschanged = trySpeak; }
+  setTimeout(()=>{ if(ttsActive) window.speechSynthesis.speak(utt); }, 50);
 }
 
 function stopSpeech() {
+  ttsActive = false;
+  // Call cancel multiple times - Chrome sometimes needs this
   window.speechSynthesis.cancel();
-  currentUtt = null;
-  document.getElementById('ai-stop-btn').style.display = 'none';
+  setTimeout(()=>window.speechSynthesis.cancel(), 50);
+  setTimeout(()=>window.speechSynthesis.cancel(), 150);
+  const stopBtn = document.getElementById('ai-stop-btn');
+  if(stopBtn) stopBtn.style.display='none';
 }
 
 // Send message
