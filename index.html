@@ -539,7 +539,7 @@ function loadSlide(num){
   document.getElementById('btn-prev').disabled=num===1;
   const isLast=num===c.slides;
   document.getElementById('btn-next').textContent=isLast?'Complete Module ✓':'Next →';
-  const frame=document.getElementById('player-frame'); frame.srcdoc=buildSlidePage(c,num);
+  const frame=document.getElementById('player-frame'); if(c.id==='part-a'){frame.src='/part-a.html';}else if(c.id==='part-b'){frame.src='/part-b.html';}else{frame.srcdoc=buildSlidePage(c,num);}
   saveProgress(c.id,num,'in_progress');
 }
 
