@@ -1041,104 +1041,9 @@ strong{color:var(--dark);}
 
 </div><!-- /sc -->
 <div id="nav" style="display:flex;align-items:center;gap:12px;">
-  <button class="nbtn" id="pb-btn" onclick="window.speechSynthesis.cancel();dgcReset();chg(-1);" disabled>← Previous</button>
+  <button class="nbtn" id="pb-btn" onclick="chg(-1)" disabled>← Previous</button>
   <button id="dgc-voice-btn" onclick="dgcToggleVoice()" style="background:#F76604;border:none;color:white;border-radius:8px;padding:10px 24px;cursor:pointer;font-size:15px;font-weight:700;font-family:inherit;flex:1;max-width:200px;">🔊 Read Slide</button>
-  <button class="nbtn" id="nx-btn" onclick="window.speechSynthesis.cancel();dgcReset();chg(1);">Next →</button>
-</div>
-
-<script>
-var _dgcPlaying = false;
-window.dgcReset = function(){
-  _dgcPlaying = false;
-  var btn=document.getElementById('dgc-voice-btn');
-  if(btn){btn.textContent='🔊 Read Slide';btn.style.background='#F76604';btn.disabled=false;}
-};
-
-window.dgcToggleVoice = function(){
-  if(_dgcPlaying){ dgcStop(); } else { dgcPlay(); }
-};
-
-function dgcStop(){
-  window.speechSynthesis.cancel();
-  _dgcPlaying = false;
-  var btn = document.getElementById('dgc-voice-btn');
-  if(btn){ btn.textContent='🔊 Read Slide'; btn.style.background='#F76604'; btn.disabled=false; }
-}
-
-function dgcGetText(){
-  // Slides are div.slide.active inside #sc
-  var activeSlide = document.querySelector('#sc div.active');
-  if(!activeSlide) return '';
-  var text = activeSlide.innerText || activeSlide.textContent || '';
-  return text.replace(/\s+/g,' ').trim().slice(0, 600);
-}
-
-function dgcSpeak(text){
-  window.speechSynthesis.cancel();
-  var sentences = text.match(/[^.!?
-]+[.!?]+/g) || [text];
-  sentences = sentences.filter(function(s){ return s.trim().length > 2; });
-  if(!sentences.length) return;
-
-  var voices = window.speechSynthesis.getVoices();
-  var voice = voices.find(function(v){return v.lang==='en-NZ';})||
-              voices.find(function(v){return v.lang==='en-AU';})||
-              voices.find(function(v){return v.lang.indexOf('en')===0;})||voices[0];
-
-  _dgcPlaying = true;
-  var btn = document.getElementById('dgc-voice-btn');
-  if(btn){btn.textContent='⏹ Stop';btn.style.background='#c0392b';btn.disabled=false;}
-
-  var i = 0;
-  // Chrome resume hack - must call resume frequently
-  var timer = setInterval(function(){
-    if(!_dgcPlaying){ clearInterval(timer); return; }
-    if(window.speechSynthesis.paused) window.speechSynthesis.resume();
-  }, 250);
-
-  function next(){
-    if(!_dgcPlaying || i >= sentences.length){
-      clearInterval(timer);
-      dgcStop();
-      return;
-    }
-    // Small delay between sentences for natural pacing
-    setTimeout(function(){
-      if(!_dgcPlaying){ clearInterval(timer); return; }
-      var utt = new SpeechSynthesisUtterance(sentences[i].trim());
-      utt.rate = 0.85;
-      utt.pitch = 1.05;
-      utt.volume = 1.0;
-      if(voice) utt.voice = voice;
-      utt.onend = function(){ i++; next(); };
-      utt.onerror = function(e){ 
-        console.log('TTS error:', e.error, 'sentence:', i);
-        i++; next(); 
-      };
-      window.speechSynthesis.speak(utt);
-    }, i === 0 ? 0 : 300);
-  }
-  next();
-}
-
-async function dgcPlay(){
-  var rawText = dgcGetText();
-  if(!rawText){ alert('No text found on this slide'); return; }
-  var btn=document.getElementById('dgc-voice-btn');
-  if(btn){btn.textContent='⏳ Loading...';btn.style.background='#555';btn.disabled=true;}
-  try{
-    var res=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({message:'You are a friendly NZ trainer. Explain this slide content naturally to a worker in 5-6 sentences, conversational tone: '+rawText,userName:null,organisation:null})});
-    var data=await res.json();
-    dgcSpeak(data.reply || rawText);
-  }catch(e){
-    console.error('dgcPlay error:', e);
-    dgcSpeak(rawText);
-  }
-}
-</script>
-
-
+  <button class="nbtn" id="nx-btn" onclick="chg(1)">Next →</button>
 </div><!-- /viewer -->
 
 <div id="comp">
@@ -1206,6 +1111,81 @@ document.addEventListener('keydown',function(e){
   if(e.key==='ArrowRight'||e.key==='ArrowDown')chg(1);
   if(e.key==='ArrowLeft'||e.key==='ArrowUp')chg(-1);
 });
+</script>
+
+
+<script>
+// DGC Voice - clean standalone implementation
+var _dgcPlaying = false;
+var _dgcTimer = null;
+
+window.dgcToggleVoice = function(){
+  _dgcPlaying ? _dgcStop() : _dgcPlay();
+};
+
+function _dgcStop(){
+  window.speechSynthesis.cancel();
+  _dgcPlaying = false;
+  if(_dgcTimer){ clearInterval(_dgcTimer); _dgcTimer = null; }
+  var b = document.getElementById('dgc-voice-btn');
+  if(b){ b.textContent='🔊 Read Slide'; b.style.background='#F76604'; b.disabled=false; }
+}
+
+function _dgcGetText(){
+  var el = document.querySelector('#sc div.active');
+  if(!el) return '';
+  return (el.innerText||el.textContent||'').replace(/\s+/g,' ').trim().slice(0,600);
+}
+
+function _dgcSpeak(text){
+  window.speechSynthesis.cancel();
+  var sentences = text.match(/[^.!?]+[.!?]+/g)||[text];
+  sentences = sentences.filter(function(s){ return s.trim().length>2; });
+  var voices = window.speechSynthesis.getVoices();
+  var voice = voices.find(function(v){return v.lang==='en-NZ';})||
+              voices.find(function(v){return v.lang==='en-AU';})||
+              voices.find(function(v){return v.lang.startsWith('en');})||voices[0];
+  var i=0;
+  // Chrome needs frequent resume to keep talking
+  _dgcTimer = setInterval(function(){
+    if(!_dgcPlaying){ clearInterval(_dgcTimer); return; }
+    if(window.speechSynthesis.paused) window.speechSynthesis.resume();
+  }, 250);
+
+  function next(){
+    if(!_dgcPlaying||i>=sentences.length){ clearInterval(_dgcTimer); _dgcStop(); return; }
+    var utt = new SpeechSynthesisUtterance(sentences[i].trim());
+    utt.rate=0.85; utt.pitch=1.05; utt.volume=1.0;
+    if(voice) utt.voice=voice;
+    utt.onend=function(){ i++; setTimeout(next,200); };
+    utt.onerror=function(){ i++; setTimeout(next,200); };
+    window.speechSynthesis.speak(utt);
+  }
+  next();
+}
+
+async function _dgcPlay(){
+  var rawText = _dgcGetText();
+  if(!rawText) return;
+  var b = document.getElementById('dgc-voice-btn');
+  if(b){ b.textContent='⏳ Loading...'; b.style.background='#666'; b.disabled=true; }
+  _dgcPlaying = true;
+  try{
+    var res = await fetch('/api/chat',{
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        message:'Explain this training slide as a friendly NZ trainer speaking to a worker. 5-6 sentences, warm conversational tone, explain why it matters: '+rawText,
+        userName:null, organisation:null
+      })
+    });
+    var data = await res.json();
+    if(b){ b.textContent='⏹ Stop'; b.style.background='#c0392b'; b.disabled=false; }
+    _dgcSpeak(data.reply||rawText);
+  } catch(e){
+    if(b){ b.textContent='⏹ Stop'; b.style.background='#c0392b'; b.disabled=false; }
+    _dgcSpeak(rawText);
+  }
+}
 </script>
 
 </body>
