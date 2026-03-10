@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DGC Training Platform</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root {
+    --navy: #0D0040;
+    --navy-light: #1a0a6b;
+    --orange: #F76604;
+    --orange-dark: #d45200;
+    --white: #ffffff;
+    --gray-100: #f5f5f7;
+    --gray-200: #e8e8ec;
+    --gray-400: #9999aa;
+    --gray-600: #555566;
+    --green: #22c55e;
+    --red: #ef4444;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Barlow', sans-serif; background: var(--navy); color: var(--white); min-height: 100vh; }
+
+  .page { display: none; min-height: 100vh; }
+  .page.active { display: flex; flex-direction: column; }
+
+  /* ─── LOGIN ─── */
+  #page-login { align-items: center; justify-content: center; position: relative; overflow: hidden; }
+  #page-login::before { content:''; position:absolute; top:-200px; right:-200px; width:600px; height:600px; background:radial-gradient(circle,rgba(247,102,4,0.15) 0%,transparent 70%); pointer-events:none; }
+
+  .login-box { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.1); border-radius:16px; padding:48px; width:100%; max-width:440px; position:relative; z-index:1; backdrop-filter:blur(20px); }
+
+  .login-logo { display:flex; align-items:center; gap:12px; margin-bottom:36px; justify-content:center; }
+  .logo-mark { width:52px; height:52px; background:var(--orange); border-radius:10px; display:flex; align-items:center; justify-content:center; font-family:'Barlow Condensed',sans-serif; font-weight:800; font-size:22px; color:white; letter-spacing:-1px; }
+  .logo-text { font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:24px; }
+  .logo-text span { color:var(--orange); }
+
+  .login-title { font-family:'Barlow Condensed',sans-serif; font-size:28px; font-weight:700; margin-bottom:8px; text-align:center; }
+  .login-sub { color:var(--gray-400); font-size:14px; text-align:center; margin-bottom:32px; }
+
+  .form-group { margin-bottom:20px; }
+  .form-label { display:block; font-size:12px; font-weight:600; letter-spacing:1px; text-transform:uppercase; color:var(--gray-400); margin-bottom:8px; }
+  .form-input { width:100%; background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.12); border-radius:8px; padding:12px 16px; color:white; font-family:'Barlow',sans-serif; font-size:15px; transition:border-color 0.2s; outline:none; }
+  .form-input:focus { border-color:var(--orange); background:rgba(255,255,255,0.1); }
+  .form-input::placeholder { color:var(--gray-600); }
+
+  .btn-primary { width:100%; background:var(--orange); color:white; border:none; border-radius:8px; padding:14px; font-family:'Barlow Condensed',sans-serif; font-size:17px; font-weight:700; cursor:pointer; transition:background 0.2s; margin-top:8px; }
+  .btn-primary:hover { background:var(--orange-dark); }
+  .btn-primary:disabled { opacity:0.5; cursor:not-allowed; }
+
+  .login-toggle { text-align:center; margin-top:20px; font-size:14px; color:var(--gray-400); }
+  .login-toggle a { color:var(--orange); cursor:pointer; font-weight:600; }
+
+  .error-msg { background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.3); border-radius:8px; padding:10px 14px; font-size:14px; color:#fca5a5; margin-bottom:16px; display:none; }
+  .success-msg { background:rgba(34,197,94,0.15); border:1px solid rgba(34,197,94,0.3); border-radius:8px; padding:10px 14px; font-size:14px; color:#86efac; margin-bottom:16px; display:none; }
+
+  /* ─── NAV ─── */
+  .nav { background:rgba(13,0,64,0.95); border-bottom:1px solid rgba(255,255,255,0.08); padding:0 32px; height:64px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:100; backdrop-filter:blur(20px); }
+  .nav-logo { display:flex; align-items:center; gap:10px; cursor:pointer; }
+  .nav-logo .logo-mark { width:36px; height:36px; font-size:15px; border-radius:7px; }
+  .nav-logo .logo-text { font-size:18px; }
+  .nav-right { display:flex; align-items:center; gap:16px; }
+  .nav-user { display:flex; align-items:center; gap:10px; font-size:14px; color:var(--gray-400); }
+  .nav-avatar { width:34px; height:34px; background:var(--orange); border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:'Barlow Condensed',sans-serif; font-weight:700; font-size:14px; color:white; }
+  .nav-link { background:none; border:none; color:var(--gray-400); font-family:'Barlow',sans-serif; font-size:14px; cursor:pointer; padding:6px 12px; border-radius:6px; transition:color 0.2s,background 0.2s; }
+  .nav-link:hover { color:white; background:rgba(255,255,255,0.07); }
+  .nav-link.orange { color:var(--orange); }
+
+  /* ─── DASHBOARD ─── */
+  .dashboard-hero { background:linear-gradient(135deg,var(--navy) 0%,#1a0a6b 100%); padding:48px 32px 40px; border-bottom:1px solid rgba(255,255,255,0.06); position:relative; overflow:hidden; }
+  .dashboard-hero::after { content:''; position:absolute; top:0; right:0; width:400px; height:100%; background:linear-gradient(90deg,transparent,rgba(247,102,4,0.08)); pointer-events:none; }
+  .hero-greeting { font-size:13px; font-weight:600; letter-spacing:2px; text-transform:uppercase; color:var(--orange); margin-bottom:8px; }
+  .hero-name { font-family:'Barlow Condensed',sans-serif; font-size:42px; font-weight:800; line-height:1.1; margin-bottom:12px; }
+  .hero-org { font-size:15px; color:var(--gray-400); display:flex; align-items:center; gap:8px; }
+  .hero-org::before { content:''; width:6px; height:6px; background:var(--orange); border-radius:50%; display:inline-block; }
+  .stats-row { display:flex; gap:20px; margin-top:28px; flex-wrap:wrap; }
+  .stat-card { background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); border-radius:12px; padding:18px 24px; min-width:130px; }
+  .stat-number { font-family:'Barlow Condensed',sans-serif; font-size:36px; font-weight:800; color:var(--orange); line-height:1; }
+  .stat-label { font-size:12px; color:var(--gray-400); margin-top:4px; text-transform:uppercase; letter-spacing:0.5px; }
+
+  .dashboard-content { padding:36px 32px; max-width:1200px; }
+  .section-title { font-family:'Barlow Condensed',sans-serif; font-size:22px; font-weight:700; margin-bottom:20px; display:flex; align-items:center; gap:10px; }
+  .section-title::after { content:''; flex:1; height:1px; background:rgba(255,255,255,0.08); }
+
+  .courses-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:20px; margin-bottom:48px; }
+  .course-card { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:14px; overflow:hidden; transition:transform 0.2s,border-color 0.2s; cursor:pointer; }
+  .course-card:hover { transform:translateY(-2px); border-color:rgba(247,102,4,0.4); }
+  .course-card-header { background:linear-gradient(135deg,#1a0a6b,#2d1a8a); padding:24px; position:relative; }
+  .course-tag { display:inline-block; background:rgba(247,102,4,0.2); border:1px solid rgba(247,102,4,0.4); color:var(--orange); font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase; padding:3px 10px; border-radius:20px; margin-bottom:12px; }
+  .course-title { font-family:'Barlow Condensed',sans-serif; font-size:21px; font-weight:700; line-height:1.2; margin-bottom:6px; }
+  .course-subtitle { font-size:13px; color:rgba(255,255,255,0.5); }
+  .course-card-body { padding:20px 24px; }
+  .progress-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+  .progress-label { font-size:12px; color:var(--gray-400); }
+  .progress-pct { font-size:13px; font-weight:600; color:var(--orange); }
+  .progress-bar { width:100%; height:6px; background:rgba(255,255,255,0.1); border-radius:3px; overflow:hidden; margin-bottom:16px; }
+  .progress-fill { height:100%; background:linear-gradient(90deg,var(--orange),#ff8c42); border-radius:3px; transition:width 0.6s ease; }
+  .course-meta { display:flex; gap:14px; font-size:12px; color:var(--gray-400); margin-bottom:16px; flex-wrap:wrap; }
+  .btn-course { width:100%; padding:10px; border-radius:8px; border:none; font-family:'Barlow Condensed',sans-serif; font-size:15px; font-weight:700; cursor:pointer; transition:all 0.2s; }
+  .btn-course.start { background:var(--orange); color:white; }
+  .btn-course.start:hover { background:var(--orange-dark); }
+  .btn-course.resume { background:rgba(247,102,4,0.15); border:1px solid rgba(247,102,4,0.4); color:var(--orange); }
+  .btn-course.completed { background:rgba(34,197,94,0.1); border:1px solid rgba(34,197,94,0.3); color:var(--green); cursor:default; }
+  .status-badge { display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:700; letter-spacing:0.5px; text-transform:uppercase; padding:3px 10px; border-radius:20px; position:absolute; top:16px; right:16px; }
+  .status-badge.not-started { background:rgba(255,255,255,0.1); color:var(--gray-400); }
+  .status-badge.in-progress { background:rgba(247,102,4,0.2); color:var(--orange); }
+  .status-badge.completed { background:rgba(34,197,94,0.2); color:var(--green); }
+
+  /* ─── PLAYER ─── */
+  #page-player { background:#0a0030; }
+  .player-layout { display:flex; flex:1; height:calc(100vh - 64px); }
+  .player-sidebar { width:270px; background:rgba(0,0,0,0.3); border-right:1px solid rgba(255,255,255,0.06); overflow-y:auto; flex-shrink:0; }
+  .sidebar-header { padding:20px; border-bottom:1px solid rgba(255,255,255,0.06); }
+  .sidebar-course-title { font-family:'Barlow Condensed',sans-serif; font-size:15px; font-weight:700; margin-bottom:10px; }
+  .sidebar-progress-text { font-size:12px; color:var(--gray-400); margin-bottom:8px; }
+  .slide-list { padding:10px 0; }
+  .slide-item { display:flex; align-items:center; gap:10px; padding:9px 18px; cursor:pointer; transition:background 0.15s; font-size:13px; color:var(--gray-400); border-left:3px solid transparent; }
+  .slide-item:hover { background:rgba(255,255,255,0.05); color:white; }
+  .slide-item.active { background:rgba(247,102,4,0.1); color:var(--orange); border-left-color:var(--orange); }
+  .slide-item.done { color:var(--green); }
+  .slide-num { width:22px; height:22px; border-radius:50%; background:rgba(255,255,255,0.08); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; flex-shrink:0; }
+  .slide-item.active .slide-num { background:var(--orange); color:white; }
+  .slide-item.done .slide-num { background:rgba(34,197,94,0.2); color:var(--green); }
+  .player-main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+  .player-frame { flex:1; border:none; background:white; }
+  .player-controls { background:rgba(0,0,0,0.4); border-top:1px solid rgba(255,255,255,0.06); padding:14px 24px; display:flex; align-items:center; justify-content:space-between; }
+  .ctrl-btn { background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.1); color:white; padding:8px 20px; border-radius:8px; font-family:'Barlow Condensed',sans-serif; font-size:15px; font-weight:600; cursor:pointer; transition:all 0.2s; }
+  .ctrl-btn:hover { background:rgba(255,255,255,0.15); }
+  .ctrl-btn:disabled { opacity:0.3; cursor:not-allowed; }
+  .ctrl-btn.primary { background:var(--orange); border-color:var(--orange); }
+  .ctrl-btn.primary:hover { background:var(--orange-dark); }
+  .slide-counter { font-family:'Barlow Condensed',sans-serif; font-size:16px; color:var(--gray-400); }
+  .slide-counter span { color:white; font-weight:700; }
+
+  /* ─── CERTIFICATES ─── */
+  .cert-content { padding:36px 32px; max-width:900px; }
+  .cert-card { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:14px; overflow:hidden; margin-bottom:16px; display:flex; align-items:center; }
+  .cert-stripe { width:8px; background:var(--green); align-self:stretch; flex-shrink:0; }
+  .cert-info { padding:22px 24px; flex:1; }
+  .cert-course-name { font-family:'Barlow Condensed',sans-serif; font-size:20px; font-weight:700; margin-bottom:6px; }
+  .cert-meta { display:flex; gap:20px; font-size:13px; color:var(--gray-400); flex-wrap:wrap; }
+  .cert-actions { padding:22px 24px; }
+  .btn-download { background:var(--orange); color:white; border:none; border-radius:8px; padding:10px 20px; font-family:'Barlow Condensed',sans-serif; font-size:15px; font-weight:700; cursor:pointer; transition:background 0.2s; white-space:nowrap; }
+  .btn-download:hover { background:var(--orange-dark); }
+
+  /* ─── ADMIN ─── */
+  .admin-content { padding:36px 32px; max-width:1100px; }
+  .admin-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:36px; }
+  .admin-stat { background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:20px 24px; }
+  .admin-stat-num { font-family:'Barlow Condensed',sans-serif; font-size:40px; font-weight:800; color:var(--orange); line-height:1; }
+  .admin-stat-label { font-size:13px; color:var(--gray-400); margin-top:4px; }
+  .workers-table { background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.07); border-radius:12px; overflow:hidden; }
+  .table-header { display:grid; grid-template-columns:2fr 2fr 1fr 1fr 1fr; padding:14px 20px; background:rgba(255,255,255,0.05); border-bottom:1px solid rgba(255,255,255,0.07); font-size:11px; font-weight:700; letter-spacing:1px; text-transform:uppercase; color:var(--gray-400); }
+  .table-row { display:grid; grid-template-columns:2fr 2fr 1fr 1fr 1fr; padding:15px 20px; border-bottom:1px solid rgba(255,255,255,0.04); font-size:14px; align-items:center; }
+  .table-row:hover { background:rgba(255,255,255,0.03); }
+  .table-row:last-child { border-bottom:none; }
+  .pill { display:inline-flex; align-items:center; padding:3px 10px; border-radius:20px; font-size:12px; font-weight:600; }
+  .pill.completed { background:rgba(34,197,94,0.15); color:var(--green); }
+  .pill.in-progress { background:rgba(247,102,4,0.15); color:var(--orange); }
+  .pill.not-started { background:rgba(255,255,255,0.08); color:var(--gray-400); }
+
+  /* ─── EMPTY ─── */
+  .empty-state { text-align:center; padding:60px 20px; color:var(--gray-400); }
+  .empty-icon { font-size:48px; margin-bottom:16px; }
+  .empty-title { font-family:'Barlow Condensed',sans-serif; font-size:22px; font-weight:700; color:white; margin-bottom:8px; }
+
+  /* ─── LOADING ─── */
+  .loading-screen { position:fixed; inset:0; background:var(--navy); display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:9999; transition:opacity 0.4s; }
+  .loading-logo { font-family:'Barlow Condensed',sans-serif; font-size:52px; font-weight:800; }
+  .loading-logo span { color:var(--orange); }
+  .loading-bar { width:200px; height:3px; background:rgba(255,255,255,0.1); border-radius:2px; margin-top:24px; overflow:hidden; }
+  .loading-bar-fill { height:100%; background:var(--orange); border-radius:2px; animation:loadAnim 1.5s ease-in-out infinite; }
+  @keyframes loadAnim { 0%{width:0%;margin-left:0} 50%{width:60%;margin-left:20%} 100%{width:0%;margin-left:100%} }
+
+  /* ─── TOAST ─── */
+  .toast { position:fixed; bottom:24px; right:24px; background:rgba(13,0,64,0.95); border:1px solid rgba(255,255,255,0.12); border-radius:10px; padding:14px 20px; font-size:14px; z-index:9999; transform:translateY(100px); opacity:0; transition:all 0.3s; backdrop-filter:blur(20px); max-width:320px; }
+  .toast.show { transform:translateY(0); opacity:1; }
+  .toast.success { border-color:rgba(34,197,94,0.4); }
+  .toast.error { border-color:rgba(239,68,68,0.4); }
+
+  @media(max-width:768px){
+    .player-sidebar{display:none;}
+    .admin-stats{grid-template-columns:repeat(2,1fr);}
+    .table-header,.table-row{grid-template-columns:2fr 2fr 1fr;}
+    .table-header>*:nth-child(4),.table-header>*:nth-child(5),
+    .table-row>*:nth-child(4),.table-row>*:nth-child(5){display:none;}
+    .nav{padding:0 16px;}
+    .dashboard-hero,.dashboard-content,.cert-content,.admin-content{padding-left:16px;padding-right:16px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="loading-screen" id="loading">
+  <div class="loading-logo">DGC<span>.</span></div>
+  <div style="font-size:13px;color:var(--gray-400);margin-top:10px;letter-spacing:2px;text-transform:uppercase;">Training Platform</div>
+  <div class="loading-bar"><div class="loading-bar-fill"></div></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ── LOGIN ── -->
+<div class="page" id="page-login">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="logo-mark">DGC</div>
+      <div class="logo-text">DGC <span>Training</span></div>
+    </div>
+    <div class="login-title" id="auth-title">Welcome Back</div>
+    <div class="login-sub" id="auth-sub">Sign in to access your training</div>
+    <div class="error-msg" id="auth-error"></div>
+    <div class="success-msg" id="auth-success"></div>
+
+    <div id="form-login">
+      <div class="form-group">
+        <label class="form-label">Email Address</label>
+        <input type="email" class="form-input" id="login-email" placeholder="you@company.co.nz" autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" class="form-input" id="login-password" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <button class="btn-primary" id="btn-login">Sign In</button>
+      <div class="login-toggle">Don't have an account? <a onclick="showRegister()">Register here</a></div>
+    </div>
+
+    <div id="form-register" style="display:none">
+      <div class="form-group">
+        <label class="form-label">Full Name</label>
+        <input type="text" class="form-input" id="reg-name" placeholder="Your full name">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Organisation</label>
+        <input type="text" class="form-input" id="reg-org" placeholder="Company or workplace name">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email Address</label>
+        <input type="email" class="form-input" id="reg-email" placeholder="you@company.co.nz">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input type="password" class="form-input" id="reg-password" placeholder="Min. 8 characters">
+      </div>
+      <button class="btn-primary" id="btn-register">Create Account</button>
+      <div class="login-toggle">Already have an account? <a onclick="showLogin()">Sign in</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── DASHBOARD ── -->
+<div class="page" id="page-dashboard">
+  <nav class="nav">
+    <div class="nav-logo" onclick="showPage('dashboard')">
+      <div class="logo-mark">DGC</div>
+      <div class="logo-text">DGC <span>Training</span></div>
+    </div>
+    <div class="nav-right">
+      <button class="nav-link orange" onclick="showPage('dashboard')">My Training</button>
+      <button class="nav-link" onclick="showPage('certificates')">Certificates</button>
+      <button class="nav-link" id="nav-admin" style="display:none" onclick="showPage('admin')">Admin</button>
+      <div class="nav-user">
+        <div class="nav-avatar" id="nav-avatar">?</div>
+        <span id="nav-username" style="font-size:14px;color:var(--gray-400);"></span>
+      </div>
+      <button class="nav-link" onclick="signOut()">Sign Out</button>
+    </div>
+  </nav>
+  <div class="dashboard-hero">
+    <div class="hero-greeting">Welcome back</div>
+    <div class="hero-name" id="hero-name">Loading...</div>
+    <div class="hero-org" id="hero-org">Organisation</div>
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-number" id="stat-total">—</div><div class="stat-label">Assigned</div></div>
+      <div class="stat-card"><div class="stat-number" id="stat-completed">—</div><div class="stat-label">Completed</div></div>
+      <div class="stat-card"><div class="stat-number" id="stat-inprogress">—</div><div class="stat-label">In Progress</div></div>
+    </div>
+  </div>
+  <div class="dashboard-content">
+    <div class="section-title">Your Training Modules</div>
+    <div class="courses-grid" id="courses-grid">
+      <div style="color:var(--gray-400);font-size:14px;grid-column:1/-1;padding:20px 0;">Loading modules...</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── PLAYER ── -->
+<div class="page" id="page-player">
+  <nav class="nav">
+    <div class="nav-logo" onclick="showPage('dashboard')">
+      <div class="logo-mark">DGC</div>
+      <div class="logo-text">DGC <span>Training</span></div>
+    </div>
+    <div class="nav-right">
+      <button class="nav-link" onclick="showPage('dashboard')">← Dashboard</button>
+    </div>
+  </nav>
+  <div class="player-layout">
+    <div class="player-sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-course-title" id="sidebar-title">Module</div>
+        <div class="sidebar-progress-text" id="sidebar-progress">0 of 0 slides</div>
+        <div class="progress-bar"><div class="progress-fill" id="sidebar-fill" style="width:0%"></div></div>
+      </div>
+      <div class="slide-list" id="slide-list"></div>
+    </div>
+    <div class="player-main">
+      <iframe class="player-frame" id="player-frame" src="about:blank" title="Training Module"></iframe>
+      <div class="player-controls">
+        <button class="ctrl-btn" id="btn-prev" onclick="prevSlide()">← Previous</button>
+        <div class="slide-counter">Slide <span id="current-slide">1</span> of <span id="total-slides">1</span></div>
+        <button class="ctrl-btn primary" id="btn-next" onclick="nextSlide()">Next →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── CERTIFICATES ── -->
+<div class="page" id="page-certificates">
+  <nav class="nav">
+    <div class="nav-logo" onclick="showPage('dashboard')">
+      <div class="logo-mark">DGC</div>
+      <div class="logo-text">DGC <span>Training</span></div>
+    </div>
+    <div class="nav-right">
+      <button class="nav-link" onclick="showPage('dashboard')">My Training</button>
+      <button class="nav-link orange">Certificates</button>
+      <button class="nav-link" id="nav-admin2" style="display:none" onclick="showPage('admin')">Admin</button>
+      <div class="nav-user"><div class="nav-avatar" id="nav-avatar2">?</div></div>
+      <button class="nav-link" onclick="signOut()">Sign Out</button>
+    </div>
+  </nav>
+  <div class="cert-content">
+    <div class="section-title">My Certificates</div>
+    <div id="cert-list"><div style="color:var(--gray-400);font-size:14px;padding:20px 0;">Loading...</div></div>
+  </div>
+</div>
+
+<!-- ── ADMIN ── -->
+<div class="page" id="page-admin">
+  <nav class="nav">
+    <div class="nav-logo" onclick="showPage('dashboard')">
+      <div class="logo-mark">DGC</div>
+      <div class="logo-text">DGC <span>Training</span></div>
+    </div>
+    <div class="nav-right">
+      <button class="nav-link" onclick="showPage('dashboard')">My Training</button>
+      <button class="nav-link" onclick="showPage('certificates')">Certificates</button>
+      <button class="nav-link orange">Admin</button>
+      <div class="nav-user"><div class="nav-avatar" id="nav-avatar3">?</div></div>
+      <button class="nav-link" onclick="signOut()">Sign Out</button>
+    </div>
+  </nav>
+  <div class="admin-content">
+    <div class="section-title">Admin Dashboard</div>
+    <div class="admin-stats">
+      <div class="admin-stat"><div class="admin-stat-num" id="a-workers">—</div><div class="admin-stat-label">Total Workers</div></div>
+      <div class="admin-stat"><div class="admin-stat-num" id="a-completions">—</div><div class="admin-stat-label">Completions</div></div>
+      <div class="admin-stat"><div class="admin-stat-num" id="a-inprogress">—</div><div class="admin-stat-label">In Progress</div></div>
+      <div class="admin-stat"><div class="admin-stat-num" id="a-passrate">—</div><div class="admin-stat-label">Pass Rate</div></div>
+    </div>
+    <div class="section-title">All Workers</div>
+    <div class="workers-table">
+      <div class="table-header">
+        <div>Worker</div><div>Organisation</div><div>Modules</div><div>Status</div><div>Last Active</div>
+      </div>
+      <div id="workers-list"><div style="padding:24px;color:var(--gray-400);font-size:14px;">Loading workers...</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://ncwwznxjgoiuvivjrupn.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5jd3d6bnhqZ29pdXZpdmpydXBuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMxMjAyNjgsImV4cCI6MjA4ODY5NjI2OH0.z22W8DXj2YsO7lFIyvujJ7Yumf_lwnDAGxk_g-FxK30';
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const COURSES = [
+  { id:'part-a', title:'Hazardous Substances Worker Training', subtitle:'Part A — Foundations', tag:'Core Module', hsno:'All Classes', duration:'45 min', slides:32 },
+  { id:'part-b', title:'Hazardous Substances Worker Training', subtitle:'Part B — Specific Substances', tag:'Specialist Module', hsno:'Class 2, 3, 8', duration:'40 min', slides:31 }
+];
+
+let currentUser=null, currentProfile=null, userProgress={}, currentCourse=null, currentSlide=1;
+
+async function init(){
+  const {data:{session}} = await sb.auth.getSession();
+  hideLoading();
+  if(session){ currentUser=session.user; await loadProfile(); showPage('dashboard'); }
+  else showPage('login');
+}
+
+function hideLoading(){ const el=document.getElementById('loading'); el.style.opacity='0'; setTimeout(()=>el.style.display='none',400); }
+
+function showLogin(){ document.getElementById('form-login').style.display='block'; document.getElementById('form-register').style.display='none'; document.getElementById('auth-title').textContent='Welcome Back'; document.getElementById('auth-sub').textContent='Sign in to access your training'; clearMsgs(); }
+function showRegister(){ document.getElementById('form-login').style.display='none'; document.getElementById('form-register').style.display='block'; document.getElementById('auth-title').textContent='Create Account'; document.getElementById('auth-sub').textContent='Register to start your training'; clearMsgs(); }
+function clearMsgs(){ document.getElementById('auth-error').style.display='none'; document.getElementById('auth-success').style.display='none'; }
+function showErr(m){ const e=document.getElementById('auth-error'); e.textContent=m; e.style.display='block'; }
+function showOk(m){ const e=document.getElementById('auth-success'); e.textContent=m; e.style.display='block'; }
+
+document.getElementById('btn-login').addEventListener('click', async()=>{
+  clearMsgs();
+  const email=document.getElementById('login-email').value.trim();
+  const password=document.getElementById('login-password').value;
+  if(!email||!password){ showErr('Please enter email and password.'); return; }
+  const btn=document.getElementById('btn-login');
+  btn.disabled=true; btn.textContent='Signing in...';
+  const {data,error}=await sb.auth.signInWithPassword({email,password});
+  btn.disabled=false; btn.textContent='Sign In';
+  if(error){ showErr(error.message); return; }
+  currentUser=data.user; await loadProfile(); showPage('dashboard');
+});
+
+document.getElementById('btn-register').addEventListener('click', async()=>{
+  clearMsgs();
+  const name=document.getElementById('reg-name').value.trim();
+  const org=document.getElementById('reg-org').value.trim();
+  const email=document.getElementById('reg-email').value.trim();
+  const password=document.getElementById('reg-password').value;
+  if(!name||!email||!password){ showErr('Please fill in all required fields.'); return; }
+  if(password.length<8){ showErr('Password must be at least 8 characters.'); return; }
+  const btn=document.getElementById('btn-register');
+  btn.disabled=true; btn.textContent='Creating account...';
+  const {data,error}=await sb.auth.signUp({email,password,options:{data:{full_name:name,organisation:org}}});
+  btn.disabled=false; btn.textContent='Create Account';
+  if(error){ showErr(error.message); return; }
+  if(data.user){
+    await sb.from('profiles').upsert({id:data.user.id,full_name:name,organisation:org,role:'worker',created_at:new Date().toISOString()});
+  }
+  showOk('Account created! Check your email to verify, then sign in.');
+});
+
+document.getElementById('login-password').addEventListener('keypress',e=>{ if(e.key==='Enter') document.getElementById('btn-login').click(); });
+
+async function signOut(){ await sb.auth.signOut(); currentUser=null; currentProfile=null; userProgress={}; showPage('login'); }
+
+async function loadProfile(){
+  if(!currentUser) return;
+  let {data:profile}=await sb.from('profiles').select('*').eq('id',currentUser.id).single();
+  if(!profile){
+    const meta=currentUser.user_metadata||{};
+    profile={id:currentUser.id,full_name:meta.full_name||currentUser.email.split('@')[0],organisation:meta.organisation||'',role:'worker'};
+    await sb.from('profiles').upsert(profile);
+  }
+  currentProfile=profile;
+  const name=profile.full_name||'User';
+  const initials=name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  ['nav-avatar','nav-avatar2','nav-avatar3'].forEach(id=>{ const el=document.getElementById(id); if(el) el.textContent=initials; });
+  document.getElementById('nav-username').textContent=name.split(' ')[0];
+  if(profile.role==='admin'){
+    document.getElementById('nav-admin').style.display='inline-block';
+    document.getElementById('nav-admin2').style.display='inline-block';
+  }
+  await loadProgress();
+  updateDashboard();
+}
+
+async function loadProgress(){
+  if(!currentUser) return;
+  const {data}=await sb.from('progress').select('*').eq('user_id',currentUser.id);
+  userProgress={};
+  if(data) data.forEach(r=>{ userProgress[r.course_id]=r; });
+}
+
+function updateDashboard(){
+  if(!currentProfile) return;
+  document.getElementById('hero-name').textContent=currentProfile.full_name||'Worker';
+  document.getElementById('hero-org').textContent=currentProfile.organisation||'DGC Training';
+  document.getElementById('stat-total').textContent=COURSES.length;
+  document.getElementById('stat-completed').textContent=Object.values(userProgress).filter(p=>p.status==='completed').length;
+  document.getElementById('stat-inprogress').textContent=Object.values(userProgress).filter(p=>p.status==='in_progress').length;
+  renderCourseCards();
+}
+
+function renderCourseCards(){
+  const grid=document.getElementById('courses-grid');
+  grid.innerHTML='';
+  COURSES.forEach(course=>{
+    const prog=userProgress[course.id];
+    const status=prog?prog.status:'not_started';
+    const pct=prog?Math.round((prog.current_slide/course.slides)*100):0;
+    const score=prog?prog.score:null;
+    const sLabel={not_started:'Not Started',in_progress:'In Progress',completed:'Completed'}[status];
+    const sClass={not_started:'not-started',in_progress:'in-progress',completed:'completed'}[status];
+    const bText={not_started:'Start Module',in_progress:'Continue',completed:'Review'}[status];
+    const bClass={not_started:'start',in_progress:'resume',completed:'completed'}[status];
+    grid.innerHTML+=`
+      <div class="course-card" onclick="openCourse('${course.id}')">
+        <div class="course-card-header">
+          <div class="status-badge ${sClass}">${sLabel}</div>
+          <div class="course-tag">${course.tag}</div>
+          <div class="course-title">${course.title}</div>
+          <div class="course-subtitle">${course.subtitle}</div>
+        </div>
+        <div class="course-card-body">
+          <div class="progress-row"><span class="progress-label">Progress</span><span class="progress-pct">${pct}%</span></div>
+          <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+          <div class="course-meta">
+            <span>📋 ${course.slides} slides</span>
+            <span>⏱ ${course.duration}</span>
+            <span>🏷 HSNO ${course.hsno}</span>
+            ${score!==null?`<span>✅ ${score}%</span>`:''}
+          </div>
+          <button class="btn-course ${bClass}" onclick="event.stopPropagation();openCourse('${course.id}')">${bText}</button>
+        </div>
+      </div>`;
+  });
+}
+
+function openCourse(courseId){
+  const course=COURSES.find(c=>c.id===courseId);
+  if(!course) return;
+  currentCourse=course;
+  const prog=userProgress[courseId];
+  currentSlide=prog?Math.max(1,prog.current_slide):1;
+  document.getElementById('sidebar-title').textContent=`${course.subtitle}`;
+  document.getElementById('total-slides').textContent=course.slides;
+  const list=document.getElementById('slide-list');
+  list.innerHTML='';
+  for(let i=1;i<=course.slides;i++){
+    const done=prog&&i<(prog.current_slide||1);
+    list.innerHTML+=`<div class="slide-item ${i===currentSlide?'active':''} ${done?'done':''}" id="si-${i}" onclick="goToSlide(${i})"><div class="slide-num">${done?'✓':i}</div><span>Slide ${i}</span></div>`;
+  }
+  showPage('player');
+  loadSlide(currentSlide);
+}
+
+function loadSlide(num){
+  currentSlide=num;
+  const c=currentCourse;
+  if(!c) return;
+  document.getElementById('current-slide').textContent=num;
+  document.getElementById('total-slides').textContent=c.slides;
+  const pct=Math.round((num/c.slides)*100);
+  document.getElementById('sidebar-progress').textContent=`${num} of ${c.slides} slides`;
+  document.getElementById('sidebar-fill').style.width=pct+'%';
+  document.querySelectorAll('.slide-item').forEach((el,i)=>{ el.classList.toggle('active',i+1===num); });
+  document.getElementById('btn-prev').disabled=num===1;
+  const isLast=num===c.slides;
+  document.getElementById('btn-next').textContent=isLast?'Complete Module ✓':'Next →';
+  document.getElementById('player-frame').srcdoc=buildSlidePage(c,num);
+  saveProgress(c.id,num,'in_progress');
+}
+
+function buildSlidePage(course,slideNum){
+  return `<!DOCTYPE html><html><head><style>
+    body{margin:0;background:#f0f2ff;font-family:'Segoe UI',sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;}
+    .card{background:white;border-radius:14px;padding:48px 56px;text-align:center;box-shadow:0 4px 32px rgba(0,0,40,0.1);max-width:560px;width:90%;}
+    .num{background:#F76604;color:white;border-radius:50%;width:52px;height:52px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;margin:0 auto 20px;}
+    h2{color:#0D0040;font-size:22px;font-weight:700;margin-bottom:8px;}
+    .sub{color:#888;font-size:14px;margin-bottom:24px;}
+    .hint{background:#fff3e6;border:1px solid #F76604;border-radius:8px;padding:14px 18px;font-size:13px;color:#b34d00;line-height:1.5;}
+    .hint strong{color:#F76604;}
+  </style></head><body>
+  <div class="card">
+    <div class="num">${slideNum}</div>
+    <h2>${course.title}</h2>
+    <div class="sub">${course.subtitle} &nbsp;·&nbsp; Slide ${slideNum} of ${course.slides}</div>
+    <div class="hint">📁 Upload your <strong>${course.id === 'part-a' ? 'Part A' : 'Part B'} SCORM ZIP</strong> to the <strong>/courses/</strong> folder on Vercel and the real slides will display here automatically.</div>
+  </div></body></html>`;
+}
+
+function goToSlide(n){ loadSlide(n); }
+function prevSlide(){ if(currentSlide>1) loadSlide(currentSlide-1); }
+async function nextSlide(){
+  if(!currentCourse) return;
+  if(currentSlide>=currentCourse.slides){
+    await saveProgress(currentCourse.id,currentCourse.slides,'completed',100);
+    await loadProgress();
+    showToast('🎉 Module completed! Certificate ready.','success');
+    setTimeout(()=>showPage('certificates'),1800);
+  } else {
+    loadSlide(currentSlide+1);
+  }
+}
+
+async function saveProgress(courseId,slide,status,score=null){
+  if(!currentUser) return;
+  const d={user_id:currentUser.id,course_id:courseId,current_slide:slide,status,updated_at:new Date().toISOString()};
+  if(score!==null) d.score=score;
+  if(status==='completed') d.completed_at=new Date().toISOString();
+  await sb.from('progress').upsert(d,{onConflict:'user_id,course_id'});
+  userProgress[courseId]={...userProgress[courseId],...d};
+}
+
+async function loadCertificates(){
+  const list=document.getElementById('cert-list');
+  const done=COURSES.filter(c=>{ const p=userProgress[c.id]; return p&&p.status==='completed'; });
+  if(done.length===0){
+    list.innerHTML=`<div class="empty-state"><div class="empty-icon">🏆</div><div class="empty-title">No certificates yet</div><p style="font-size:14px;margin-top:8px;">Complete a training module to earn your certificate.</p></div>`;
+    return;
+  }
+  list.innerHTML=done.map(course=>{
+    const p=userProgress[course.id];
+    const date=p.completed_at?new Date(p.completed_at).toLocaleDateString('en-NZ',{day:'numeric',month:'long',year:'numeric'}):'Completed';
+    return `<div class="cert-card">
+      <div class="cert-stripe"></div>
+      <div class="cert-info">
+        <div class="cert-course-name">${course.title} — ${course.subtitle}</div>
+        <div class="cert-meta">
+          <span>✅ ${date}</span>
+          <span>📊 Score: ${p.score||100}%</span>
+          <span>🏷 HSNO ${course.hsno}</span>
+        </div>
+      </div>
+      <div class="cert-actions">
+        <button class="btn-download" onclick="downloadCert('${course.id}')">⬇ Download PDF</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function downloadCert(courseId){
+  const {jsPDF}=window.jspdf;
+  const course=COURSES.find(c=>c.id===courseId);
+  const prog=userProgress[courseId];
+  if(!course||!prog||!currentProfile) return;
+  const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  const W=297,H=210;
+  // Background
+  doc.setFillColor(13,0,64); doc.rect(0,0,W,H,'F');
+  // Orange stripe top-right
+  doc.setFillColor(247,102,4); doc.triangle(W*0.58,0,W,0,W,H*0.5,'F');
+  // Left bar
+  doc.setFillColor(247,102,4); doc.rect(0,0,10,H,'F');
+  // White content panel
+  doc.setFillColor(255,255,255); doc.roundedRect(22,22,W*0.52,H-44,4,4,'F');
+  // DGC box
+  doc.setFillColor(13,0,64); doc.roundedRect(28,28,38,18,2,2,'F');
+  doc.setTextColor(255,255,255); doc.setFontSize(13); doc.setFont('helvetica','bold');
+  doc.text('DGC',47,40,{align:'center'});
+  // Cert label
+  doc.setTextColor(160,160,160); doc.setFontSize(9); doc.setFont('helvetica','normal');
+  doc.text('CERTIFICATE OF COMPLETION',28,60);
+  // Name
+  const name=currentProfile.full_name||'Worker';
+  doc.setFontSize(30); doc.setFont('helvetica','bold'); doc.setTextColor(13,0,64);
+  doc.text(name,28,78);
+  doc.setDrawColor(247,102,4); doc.setLineWidth(0.8);
+  doc.line(28,81,28+Math.min(name.length*5.5,W*0.46),81);
+  // Body
+  doc.setFontSize(10); doc.setFont('helvetica','normal'); doc.setTextColor(90,90,90);
+  doc.text('has successfully completed the following training:',28,92);
+  doc.setFontSize(13); doc.setFont('helvetica','bold'); doc.setTextColor(13,0,64);
+  doc.text(course.title,28,103);
+  doc.setFontSize(11); doc.setFont('helvetica','normal');
+  doc.text(course.subtitle,28,111);
+  // Reg text
+  doc.setFontSize(8.5); doc.setFont('helvetica','italic'); doc.setTextColor(110,110,110);
+  doc.text('As required under Regulation 4.5(3)(a) of the Hazardous Substances (Identification) Regulations',28,123);
+  doc.text('and the Health and Safety at Work Act 2015 (New Zealand).',28,129);
+  // Date / score / org
+  const dateStr=prog.completed_at?new Date(prog.completed_at).toLocaleDateString('en-NZ',{day:'numeric',month:'long',year:'numeric'}):new Date().toLocaleDateString('en-NZ');
+  doc.setFontSize(9); doc.setFont('helvetica','normal'); doc.setTextColor(120,120,120);
+  doc.text(`Completion Date: ${dateStr}`,28,143);
+  doc.text(`Score: ${prog.score||100}%   |   Organisation: ${currentProfile.organisation||'N/A'}`,28,150);
+  // Sig line
+  doc.setDrawColor(210,210,210); doc.setLineWidth(0.3);
+  doc.line(28,168,105,168);
+  doc.setFontSize(8); doc.setTextColor(100,100,100);
+  doc.text('James Dunphy — Director, DGC Training Limited',28,174);
+  // Right side branding
+  doc.setFontSize(56); doc.setFont('helvetica','bold'); doc.setTextColor(255,255,255);
+  doc.text('DGC',W*0.79,72,{align:'center'});
+  doc.setFontSize(10); doc.setFont('helvetica','normal');
+  doc.text('DGC TRAINING LIMITED',W*0.79,84,{align:'center'});
+  doc.setFontSize(9); doc.setTextColor(255,200,150);
+  doc.text('Hazardous Substances Training Specialists',W*0.79,93,{align:'center'});
+  doc.text('New Zealand',W*0.79,100,{align:'center'});
+  const certId=`DGC-${currentUser.id.slice(0,6).toUpperCase()}-${courseId.slice(-2).toUpperCase()}-${Date.now().toString().slice(-4)}`;
+  doc.setFontSize(8); doc.setTextColor(180,180,220);
+  doc.text(`Certificate ID: ${certId}`,W*0.79,H-30,{align:'center'});
+  doc.text('Verify at dgctraining.co.nz/verify',W*0.79,H-23,{align:'center'});
+  doc.save(`DGC_Certificate_${name.replace(/\s+/g,'_')}_${course.id}.pdf`);
+  showToast('Certificate downloaded!','success');
+}
+
+async function loadAdmin(){
+  const {data:profiles}=await sb.from('profiles').select('*').eq('role','worker');
+  const {data:allProg}=await sb.from('progress').select('*');
+  if(!profiles) return;
+  const total=profiles.length;
+  const comp=allProg?allProg.filter(p=>p.status==='completed').length:0;
+  const inp=allProg?allProg.filter(p=>p.status==='in_progress').length:0;
+  const pr=comp>0?Math.round((comp/(comp+inp))*100):0;
+  document.getElementById('a-workers').textContent=total;
+  document.getElementById('a-completions').textContent=comp;
+  document.getElementById('a-inprogress').textContent=inp;
+  document.getElementById('a-passrate').textContent=pr+'%';
+  const wl=document.getElementById('workers-list');
+  if(profiles.length===0){ wl.innerHTML='<div style="padding:24px;color:var(--gray-400);font-size:14px;">No workers registered yet.</div>'; return; }
+  wl.innerHTML=profiles.map(p=>{
+    const wp=allProg?allProg.filter(pr=>pr.user_id===p.id):[];
+    const c=wp.filter(pr=>pr.status==='completed').length;
+    const st=c===COURSES.length?'completed':wp.length>0?'in_progress':'not_started';
+    const sl={completed:'All Done',in_progress:'In Progress',not_started:'Not Started'}[st];
+    const last=wp.length>0?new Date(Math.max(...wp.map(pr=>new Date(pr.updated_at)))).toLocaleDateString('en-NZ'):'Never';
+    return `<div class="table-row">
+      <div style="font-weight:600">${p.full_name||'—'}</div>
+      <div style="color:var(--gray-400);font-size:13px;">${p.organisation||'—'}</div>
+      <div style="font-size:13px;">${c}/${COURSES.length}</div>
+      <div><span class="pill ${st}">${sl}</span></div>
+      <div style="color:var(--gray-400);font-size:13px;">${last}</div>
+    </div>`;
+  }).join('');
+}
+
+function showPage(page){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById(`page-${page}`).classList.add('active');
+  if(page==='dashboard') updateDashboard();
+  if(page==='certificates') loadCertificates();
+  if(page==='admin') loadAdmin();
+}
+
+function showToast(msg,type='info'){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.className=`toast show ${type}`;
+  setTimeout(()=>el.classList.remove('show'),3500);
+}
+
+init();
+</script>
+</body>
+</html>
