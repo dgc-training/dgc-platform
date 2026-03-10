@@ -722,5 +722,192 @@ function showToast(msg,type='info'){
 
 init();
 </script>
+
+<!-- ─── AI VOICE ASSISTANT ─── -->
+<style>
+  .ai-fab { position:fixed; bottom:28px; right:28px; width:60px; height:60px; background:var(--orange); border-radius:50%; border:none; cursor:pointer; box-shadow:0 4px 20px rgba(247,102,4,0.5); display:flex; align-items:center; justify-content:center; z-index:9999; transition:transform 0.2s,box-shadow 0.2s; }
+  .ai-fab:hover { transform:scale(1.1); box-shadow:0 6px 28px rgba(247,102,4,0.7); }
+  .ai-fab svg { width:28px; height:28px; fill:white; }
+  .ai-fab.listening { animation:pulse-ring 1.2s infinite; background:#22c55e; }
+  @keyframes pulse-ring { 0%{box-shadow:0 0 0 0 rgba(34,197,94,0.6)} 70%{box-shadow:0 0 0 18px rgba(34,197,94,0)} 100%{box-shadow:0 0 0 0 rgba(34,197,94,0)} }
+
+  .ai-panel { position:fixed; bottom:100px; right:28px; width:360px; max-height:520px; background:#1a1040; border:1px solid rgba(255,255,255,0.12); border-radius:16px; box-shadow:0 8px 40px rgba(0,0,0,0.6); z-index:9998; display:none; flex-direction:column; overflow:hidden; }
+  .ai-panel.open { display:flex; }
+  .ai-header { background:var(--orange); padding:14px 18px; display:flex; align-items:center; gap:10px; }
+  .ai-header-icon { width:36px; height:36px; background:rgba(255,255,255,0.2); border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:18px; }
+  .ai-header-text h3 { font-family:'Barlow Condensed',sans-serif; font-size:17px; font-weight:700; color:white; }
+  .ai-header-text p { font-size:12px; color:rgba(255,255,255,0.8); }
+  .ai-close { margin-left:auto; background:none; border:none; color:white; font-size:20px; cursor:pointer; opacity:0.8; }
+  .ai-close:hover { opacity:1; }
+
+  .ai-messages { flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:10px; }
+  .ai-msg { max-width:85%; padding:10px 14px; border-radius:12px; font-size:14px; line-height:1.5; }
+  .ai-msg.bot { background:rgba(255,255,255,0.08); color:var(--white); border-bottom-left-radius:4px; align-self:flex-start; }
+  .ai-msg.user { background:var(--orange); color:white; border-bottom-right-radius:4px; align-self:flex-end; }
+  .ai-msg.typing { background:rgba(255,255,255,0.08); align-self:flex-start; }
+  .typing-dots { display:flex; gap:4px; padding:4px 2px; }
+  .typing-dots span { width:8px; height:8px; background:var(--gray-400); border-radius:50%; animation:bounce 1.2s infinite; }
+  .typing-dots span:nth-child(2) { animation-delay:0.2s; }
+  .typing-dots span:nth-child(3) { animation-delay:0.4s; }
+  @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
+
+  .ai-input-row { display:flex; gap:8px; padding:12px; border-top:1px solid rgba(255,255,255,0.08); background:#130d35; }
+  .ai-input { flex:1; background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.12); border-radius:8px; padding:10px 12px; color:white; font-family:'Barlow',sans-serif; font-size:14px; outline:none; resize:none; height:40px; }
+  .ai-input:focus { border-color:var(--orange); }
+  .ai-send { width:40px; height:40px; background:var(--orange); border:none; border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .ai-send:hover { background:var(--orange-dark); }
+  .ai-send svg { width:18px; height:18px; fill:white; }
+  .ai-mic { width:40px; height:40px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); border-radius:8px; cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:background 0.2s; }
+  .ai-mic:hover { background:rgba(255,255,255,0.15); }
+  .ai-mic.active { background:#22c55e; border-color:#22c55e; }
+  .ai-mic svg { width:18px; height:18px; fill:white; }
+
+  .ai-suggestions { display:flex; flex-wrap:wrap; gap:6px; padding:0 16px 12px; }
+  .ai-chip { background:rgba(247,102,4,0.15); border:1px solid rgba(247,102,4,0.3); color:var(--orange); border-radius:20px; padding:5px 12px; font-size:12px; cursor:pointer; transition:background 0.2s; white-space:nowrap; }
+  .ai-chip:hover { background:rgba(247,102,4,0.3); }
+</style>
+
+<!-- FAB Button -->
+<button class="ai-fab" id="ai-fab" title="Ask the DGC Training Assistant">
+  <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>
+</button>
+
+<!-- Chat Panel -->
+<div class="ai-panel" id="ai-panel">
+  <div class="ai-header">
+    <div class="ai-header-icon">🤖</div>
+    <div class="ai-header-text">
+      <h3>DGC Training Assistant</h3>
+      <p>Ask me anything about hazardous substances</p>
+    </div>
+    <button class="ai-close" id="ai-close">×</button>
+  </div>
+  <div class="ai-messages" id="ai-messages">
+    <div class="ai-msg bot">Kia ora! I'm your DGC Training Assistant. I can answer questions about hazardous substances, GHS pictograms, SDS sheets, storage requirements, and more. What would you like to know?</div>
+  </div>
+  <div class="ai-suggestions" id="ai-suggestions">
+    <span class="ai-chip">What is a SDS?</span>
+    <span class="ai-chip">GHS pictograms</span>
+    <span class="ai-chip">Flammable storage</span>
+    <span class="ai-chip">PPE requirements</span>
+  </div>
+  <div class="ai-input-row">
+    <textarea class="ai-input" id="ai-input" placeholder="Ask a question..." rows="1"></textarea>
+    <button class="ai-mic" id="ai-mic" title="Voice input">
+      <svg viewBox="0 0 24 24"><path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3zm-1-9c0-.55.45-1 1-1s1 .45 1 1v6c0 .55-.45 1-1 1s-1-.45-1-1V5zm6 6c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/></svg>
+    </button>
+    <button class="ai-send" id="ai-send">
+      <svg viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+    </button>
+  </div>
+</div>
+
+<script>
+// ─── AI ASSISTANT ───
+const aiFab = document.getElementById('ai-fab');
+const aiPanel = document.getElementById('ai-panel');
+const aiClose = document.getElementById('ai-close');
+const aiMessages = document.getElementById('ai-messages');
+const aiInput = document.getElementById('ai-input');
+const aiSend = document.getElementById('ai-send');
+const aiMic = document.getElementById('ai-mic');
+const aiSuggestions = document.getElementById('ai-suggestions');
+
+// Toggle panel
+aiFab.addEventListener('click', () => {
+  aiPanel.classList.toggle('open');
+  if(aiPanel.classList.contains('open')) {
+    aiFab.innerHTML = '<svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>';
+    setTimeout(() => aiInput.focus(), 100);
+  } else {
+    aiFab.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>';
+  }
+});
+aiClose.addEventListener('click', () => { aiPanel.classList.remove('open'); aiFab.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14H9V8h2v8zm4 0h-2V8h2v8z"/></svg>'; });
+
+// Suggestion chips
+aiSuggestions.querySelectorAll('.ai-chip').forEach(chip => {
+  chip.addEventListener('click', () => { aiInput.value = chip.textContent; sendAiMessage(); });
+});
+
+// Send message
+async function sendAiMessage() {
+  const text = aiInput.value.trim();
+  if(!text) return;
+  aiInput.value = '';
+  aiSuggestions.style.display = 'none';
+
+  // Add user message
+  addMsg(text, 'user');
+
+  // Typing indicator
+  const typingEl = document.createElement('div');
+  typingEl.className = 'ai-msg typing';
+  typingEl.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
+  aiMessages.appendChild(typingEl);
+  aiMessages.scrollTop = aiMessages.scrollHeight;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: `You are the DGC Training Assistant, an expert in New Zealand hazardous substances regulations and HSNO Act compliance. You help workers at companies like Repco understand hazardous substances safety. Keep answers concise, practical and friendly. Focus on: GHS pictograms, Safety Data Sheets (SDS), HSNO classes (2.1 flammable gases, 3.1 flammable liquids, 8.1 corrosives, 6.1 toxics), PPE, storage requirements (AS 1940), spill response, and workplace safety. Use plain English suitable for shop floor workers. Start responses naturally without saying "Great question" or similar filler.`,
+        messages: [{ role: 'user', content: text }]
+      })
+    });
+    const data = await res.json();
+    typingEl.remove();
+    const reply = data.content?.[0]?.text || "Sorry, I couldn't get a response. Please try again.";
+    addMsg(reply, 'bot');
+    
+    // Text to speech
+    if('speechSynthesis' in window) {
+      const utt = new SpeechSynthesisUtterance(reply.replace(/[*#]/g,''));
+      utt.rate = 1.0; utt.pitch = 1.0;
+      const voices = window.speechSynthesis.getVoices();
+      const nzVoice = voices.find(v => v.lang === 'en-NZ') || voices.find(v => v.lang.startsWith('en'));
+      if(nzVoice) utt.voice = nzVoice;
+      window.speechSynthesis.speak(utt);
+    }
+  } catch(e) {
+    typingEl.remove();
+    addMsg('Sorry, I had trouble connecting. Please check your internet and try again.', 'bot');
+  }
+}
+
+function addMsg(text, type) {
+  const el = document.createElement('div');
+  el.className = `ai-msg ${type}`;
+  el.textContent = text;
+  aiMessages.appendChild(el);
+  aiMessages.scrollTop = aiMessages.scrollHeight;
+}
+
+aiSend.addEventListener('click', sendAiMessage);
+aiInput.addEventListener('keypress', e => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAiMessage(); } });
+
+// Voice input
+let recognition = null;
+if('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  recognition = new SR();
+  recognition.lang = 'en-NZ';
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  recognition.onresult = e => { aiInput.value = e.results[0][0].transcript; aiMic.classList.remove('active'); aiFab.classList.remove('listening'); };
+  recognition.onend = () => { aiMic.classList.remove('active'); aiFab.classList.remove('listening'); };
+  aiMic.addEventListener('click', () => {
+    if(aiMic.classList.contains('active')) { recognition.stop(); }
+    else { recognition.start(); aiMic.classList.add('active'); aiFab.classList.add('listening'); }
+  });
+} else {
+  aiMic.style.display = 'none';
+}
+</script>
+
 </body>
 </html>
+<!-- This is a placeholder - will be injected by script below -->
