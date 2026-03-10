@@ -1066,11 +1066,10 @@ function dgcStop(){
 }
 
 function dgcGetText(){
-  // Only read the currently active slide using SLIDES[cur-1]
-  var slideId = SLIDES[cur-1];
-  var slideEl = document.getElementById(slideId);
-  if(!slideEl) return '';
-  var text = slideEl.innerText || slideEl.textContent || '';
+  // Slides are div.slide.active inside #sc
+  var activeSlide = document.querySelector('#sc div.active');
+  if(!activeSlide) return '';
+  var text = activeSlide.innerText || activeSlide.textContent || '';
   return text.replace(/\s+/g,' ').trim().slice(0, 600);
 }
 
