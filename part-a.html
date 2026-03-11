@@ -1041,9 +1041,9 @@ strong{color:var(--dark);}
 
 </div><!-- /sc -->
 <div id="nav">
-  <button class="nbtn" id="pb-btn" onclick="chg(-1)" disabled>← Previous</button>
+  <button class="nbtn" id="pb-btn" onclick="dgcStopVoice();chg(-1);" disabled>← Previous</button>
   <button id="dgc-voice-btn" onclick="dgcToggleVoice()" style="background:#F76604;border:none;color:#fff;border-radius:8px;padding:10px 18px;cursor:pointer;font-size:14px;font-weight:700;">🔊 Read Slide</button>
-  <button class="nbtn" id="nx-btn" onclick="chg(1)">Next →</button>
+  <button class="nbtn" id="nx-btn" onclick="dgcStopVoice();chg(1);">Next →</button>
 </div>
 </div><!-- /viewer -->
 
@@ -1114,55 +1114,124 @@ document.addEventListener('keydown',function(e){
 });
 </script>
 <script>
-var _vPlaying=false,_vTimer=null;
-window.dgcToggleVoice=function(){_vPlaying?_vStop():_vPlay();};
-function _vStop(){
+(function(){
+var _p=false, _words=[], _wi=0, _t=null, _voice=null;
+var _expl={
+  's1': 'Welcome to Part A of your Hazardous Substances training. This module gives you the knowledge you need to work safely with the products you handle every day at Repco. As you go through, you will find case studies — real events that happened to real workers. There are knowledge check questions to see if the ideas are landing. And your own questions are welcome too — write them down and bring them to your manager. No question is too basic. Safety starts with understanding, and that is what this course is here to give you.',
+  's2': 'Module 1 covers the big picture of hazardous substances at Repco. Before getting into specific products, you need the foundations — the law that sets your responsibilities, why flammability is such a big issue here specifically, and how chemicals are grouped into classes so you can quickly recognise what risk you are dealing with. By the end of this module, you will have the grounding to handle hazardous products safely and confidently every single day.',
+  's3': 'The Health and Safety at Work Act 2015 is New Zealand\'s main workplace safety law. Its purpose is simple — to make sure workers and everyone who comes into a workplace goes home safe. The law requires risks to be properly managed, and it holds both businesses and individual workers accountable. It is not just your employer\'s job to keep things safe — you have a real role to play too. HSWA exists because people have been seriously hurt or killed in workplaces where risks were ignored. Understanding this law is the first step in knowing what is expected of you and why it genuinely matters.',
+  's4': 'Here is something important about Repco specifically — most of what you sell is flammable, meaning it can catch fire. That is not a minor detail. In 2018, a fire broke out at a Bunnings store in Perth. Because the store was full of flammable products, the fire spread fast and became very serious very quickly. The exact same risk exists in your store. Understanding that flammability is a defining feature of your workplace — not just an occasional hazard — changes how you think about storage, handling, and what to do in an emergency.',
+  's5': 'Hazardous substances are grouped into classes because within each class, chemicals share similar properties and similar risks. The main classes you need to know are explosives, which can blow up; flammables, which can catch fire; oxidisers, which release oxygen and can make fires much worse; and toxic substances, which cause harm to the body. At Repco, you will mostly encounter flammables and some toxic substances. Knowing the class of a product tells you how to store it, what to keep it away from, and what protective equipment you might need.',
+  's6': 'At Repco the two main hazardous substance types are Class 2 flammable aerosols and Class 3 flammable liquids. Aerosols are pressurised containers — they contain a flammable propellant gas, and if heated, punctured, or damaged, they can explode and the vapour can ignite. Class 3 flammable liquids include solvents, brake cleaners, and degreasers. These give off vapour that can catch fire, especially when containers are open. Both classes require careful storage, proper handling, and constant awareness of where heat sources are in your store.',
+  's7': 'Some chemicals are incompatible — if stored together or mixed, they can react dangerously, producing heat, toxic gas, or fire. At Repco, if two products belong to different hazard classes, treat them as incompatible and store them separately. Aerosols also need their own designated storage area. The Safety Data Sheet for any product will tell you specifically what it must not be stored near. Proper segregation of incompatible substances is one of the simplest and most effective ways to prevent a serious incident.',
+  's8': 'Risk is not fixed — it changes based on how much exposure there is. Sealed containers on a shelf have low risk because nothing is escaping. But the moment a container is opened, mixed, or spilled, risk increases because vapour or liquid can now reach you. Paint tinting is a good example — you are working with open containers of flammable liquid, and vapour is present in the air. That is a higher-risk situation than moving a sealed can. Recognising when risk is elevated, and adjusting what you do accordingly, is a core part of working safely.',
+  's9': 'Jamey Bowring was twenty-four years old when he died in south Auckland in 2015. He was welding on top of a storage tank at Salter\'s Cartage yard. Nobody had checked whether the tank still contained petrol vapour. It did. The welding spark ignited it, and the explosion killed him. This was not bad luck — it was a preventable tragedy. The hazard was there, but nobody identified it before work began. Jamey\'s death is a powerful reminder that understanding flammable vapour, and checking for it before you act, is not optional. It is the difference between going home and not going home.',
+  's10': 'A hazardous area is the zone around certain flammable substances where vapour can build up to a level that could ignite. At Salters, that zone extended well above and around the tank — which is exactly why welding on top was so deadly. At Repco, AS 1940 cabinets are used to store flammable liquids safely. These cabinets are designed to contain vapour, resist fire, and slow down the spread of flames. They are not just storage boxes — they are safety equipment. Flammable liquids must always be stored inside them, never left on open shelves or in general storage areas.',
+  's11': 'Chemicals can enter your body in three main ways. Inhalation means breathing in vapour, mist, or dust — the most common route with aerosols and solvents, and it can cause immediate dizziness as well as long-term lung damage. Ingestion means accidentally swallowing a chemical, which usually happens when people eat or smoke without washing their hands first. Skin and eye contact can cause burns, rashes, or absorption into the bloodstream. Understanding how chemicals get into your body is the first step in choosing the right protection before you start any task.',
+  's13': 'Picture risk as a ladder. At the bottom, you have sealed containers on shelves — nothing is escaping, risk is low. Move up a rung and you have controlled opening for work tasks like paint tinting — vapour is present and there is potential for skin contact, so risk is moderate. At the top, you have an uncontrolled release — a spill or a leak — vapour fills the area, skin contact is likely, and risk is high. The same product carries very different levels of risk depending on what you are doing with it. Always match your level of care to the level of risk you are actually in.',
+  'sq1': 'You have reached the first knowledge check. These five questions cover the legal framework, flammable substances, and classifications from the first section of the module. Read each question carefully, think it through, then click to see the answer. If you get one wrong, go back to the relevant slide and review it. Getting a question wrong is not a problem — learning from it is the whole point of this section.',
+  's14': 'Section 45 of the Health and Safety at Work Act sets out your duties as a worker. You must take reasonable care of your own health and safety. You must make sure your actions do not harm the people around you — colleagues, customers, anyone in the store. You must follow reasonable instructions from your employer and comply with Repco\'s safety procedures. These are not suggestions — they are legal duties. If something goes wrong and you have not met them, you can be held personally accountable. The good news is that meeting these duties is mostly about building the right habits, which is exactly what this training is designed to do.',
+  's15': 'In 2022, four workers at an Auckland construction site were seriously injured in an explosion. They had been cooking breakfast in a shipping container using an LPG cylinder — something that had probably become a daily routine. But LPG is heavier than air. When it leaks, it sinks and builds up at floor level without anyone noticing. When the workers opened the container that morning, a spark ignited the accumulated gas. All four were injured. This case shows how routine can make you less cautious over time. The fact that something has been done a hundred times without incident does not mean the risk has gone away.',
+  's16': 'LPG is made up of propane and butane — both highly flammable gases stored under pressure. Because the gas is odourless, a smell is added during production so you can detect leaks. If you ever smell that distinctive gas odour, act immediately. Do not search for the leak with a flame. Do not flip electrical switches. Get people out of the area. The Auckland explosion happened because accumulated LPG in an enclosed space was ignited by a spark. Propane and butane are Category 1 flammable gases — the highest risk level — and they need to be treated with that level of respect.',
+  's17': 'New Zealand uses two classification systems for hazardous substances — HSNO and GHS. HSNO uses numbers and letters like 3.1C. GHS uses pictograms, signal words, and numbered categories like Flammable Liquid Category 3. You will see both on products and in Safety Data Sheets. They are not in conflict — they describe the same hazards in different formats. Knowing how to read both systems means you can interpret any label or Safety Data Sheet you come across, regardless of which format is being used.',
+  's18': 'An HSNO code like 3.1C tells you a lot in just a few characters. The 3 means it is a flammable liquid. The 1 is the sub-class within that group. The letter tells you the degree of hazard — A is the most dangerous, like petrol, which ignites at very low temperatures. B is high danger. C means moderate, with a higher flash point and less likely to ignite at room temperature. Once you understand the code, you can look at a product on the shelf and immediately know how much care to take when handling it.',
+  's18b': 'The GHS system uses hazard classes and numbered categories. Category 1 is the highest risk and higher numbers mean lower risk within the same class. So Flammable Liquid Category 1, like petrol, is extremely dangerous and needs maximum precautions. Flammable Liquid Category 3, like methylated spirits, is still flammable and needs care, but is less volatile than petrol. GHS labels also use signal words — Danger for higher risk products and Warning for lower risk ones — along with pictograms that give you a visual summary at a glance.',
+  's19': 'GHS labels are designed to be read quickly even in a busy store. A flame pictogram means flammable. A skull means acutely toxic. An exclamation mark covers skin and eye irritation. Methylated spirits is typically Category 2 — highly flammable. Diesel is usually Category 3 or 4 — still flammable but with a higher flash point. Looking back at the case studies, the LPG in the Auckland explosion was a Category 1 flammable gas, and the petrol that killed Jamey Bowring was a Category 1 flammable liquid. The most serious incidents in this module both involved substances at the very top of the risk scale.',
+  's20': 'Health hazards come in two forms — immediate and long-term. Immediate harm is obvious: a chemical splashes in your eye and burns it, or you inhale concentrated vapour and feel dizzy right away. Long-term harm is more subtle — some substances cause serious damage over months or years of repeated low-level exposure, including lung disease, liver damage, or cancer. Because the effects are not immediately visible, they are easy to underestimate. Always check the signal word on the label, look at the pictograms, and read Sections 2 and 11 of the Safety Data Sheet to get the full picture.',
+  's21': 'ADOS Plastic Putty might seem like a routine product, but it has two distinct hazard profiles. It is flammable — that is the obvious risk. But it also contains substances classified as potentially carcinogenic when inhaled repeatedly over time. That means using it occasionally with good ventilation is very different from using it every day in a poorly ventilated space without a mask. This is why you cannot judge a product by how familiar it feels. PPE, ventilation, and reading the Safety Data Sheet matter for everyday products, not just the ones that look obviously dangerous.',
+  's22': 'Imagine a customer asks you whether ADOS Plastic Putty is safe to use during pregnancy. Do not answer that from memory. The Safety Data Sheet is your authoritative source. Section 11 covers health effects in detail, and for this product it notes reproductive toxicity concerns. The correct answer, based on the SDS, is that this product should be avoided during pregnancy. Being able to find and read an SDS does not just protect you — it lets you give customers accurate, responsible advice, which is part of your professional responsibility at Repco.',
+  's23': 'The Safety Data Sheet is your most important reference for any hazardous product. It tells you what is in the product, how it is classified, what to do if someone is exposed, how to fight a fire involving it, what PPE to wear, and how to dispose of it properly. The key sections are Section 2 for classification, Section 4 for first aid, Section 5 for fire, Section 8 for PPE, and Section 13 for disposal. In Part B of this training you will work through actual Safety Data Sheets in detail. For now, know that the SDS is your go-to whenever you have a question about a product\'s hazards.',
+  's24': 'You have a legal right and a legal requirement to access the Safety Data Sheet for any hazardous product you work with. At Repco, you can get them through the store management system, from the supplier website, by asking your manager, or by scanning a QR code if one is on the product. The critical thing is knowing how to access them before you need them — not while you are standing next to a spill trying to manage an emergency. Take the time today to find out where your store\'s SDS library is. That preparation could genuinely make a difference when it matters most.',
+  's25': 'A Standard Operating Procedure is a written set of steps for doing a hazardous task safely. SOPs exist because some tasks carry enough risk that the right approach needs to be clearly defined and consistently followed every time — not just when a manager is watching. At Repco, SOPs cover things like receiving aerosol deliveries, cleaning up small spills, disposing of expired cans, and using a fire extinguisher. Following the SOP is not about being slow — it is about making sure that every time a hazardous task happens, it is done the way that is known to be safe.',
+  's26': 'A spill kit contains everything you need to clean up a chemical spill safely without exposing yourself to the substance. Every Repco store must have one, and every team member must know where it is. A typical kit contains nitrile gloves, safety goggles, absorbent pads or granules to soak up the spill, and a sealable bag for safe disposal. If you do not know where your store\'s spill kit is right now, find out today. In a real spill, the last thing you want to be doing is searching for the kit while the substance is spreading.',
+  'sq2': 'Here are the final five questions for Module 1, covering health hazards, Safety Data Sheets, PPE, and waste disposal. Work through each one carefully. Think about what you have learned, then reveal the answer. If any question catches you out, go back and review the relevant slide. The goal here is not to test you — it is to make sure the information that could keep you safe has genuinely stuck.',
+  's27': 'Hazardous waste is not ordinary rubbish and it cannot be treated like it. Pouring flammable solvents down the drain is illegal and causes environmental damage. Crushing or burning aerosol cans is dangerous — they are pressurised and can explode even when nearly empty. Section 13 of the Safety Data Sheet tells you the correct disposal method for each product. At Repco there are designated containers and procedures for hazardous waste. Using them correctly is part of your legal responsibility — and it matters whether someone is watching or not.',
+  's28': 'Personal protective equipment is the last line of defence — meaning it is important, but it should not be the only thing standing between you and a hazard. Good procedures, proper ventilation, and engineering controls come first. PPE covers the remaining risk. At Repco, that typically means safety glasses when handling aerosols or liquid chemicals, chemical-resistant gloves when skin contact is possible, and a face shield for larger spills. Wearing PPE correctly, every time, not just when it feels necessary, is what makes it actually work.',
+  's29': 'If you need to know which PPE to use for a specific product, go to Section 8 of the Safety Data Sheet. Not a colleague\'s habit, not the packaging photo, not a guess based on similar products. Different products in the same category can have very different PPE requirements depending on exactly what is in them. Section 8 gives you the specific, product-level guidance for gloves, eye protection, and respiratory protection. Making PPE decisions from the SDS rather than assumption is the professional standard — and it is the habit that genuinely protects your long-term health.',
+  's30': 'You have completed Module 1 — well done. You now understand your legal duties under HSWA and Section 45. You can read HSNO and GHS classifications and know what they mean. You understand how chemicals enter the body, how to use the risk ladder to match your precautions to the situation, and what Safety Data Sheets, SOPs, spill kits, and PPE are for and when to use them. This is the foundation. Module 2 builds on all of it by focusing specifically on the products you work with every day at Repco.'
+};
+
+function _btn(text,bg,disabled){
+  var b=document.getElementById('dgc-voice-btn');
+  if(b){b.textContent=text;b.style.background=bg;b.disabled=!!disabled;}
+}
+function _stop(){
   window.speechSynthesis.cancel();
-  _vPlaying=false;
-  if(_vTimer){clearInterval(_vTimer);_vTimer=null;}
-  var b=document.getElementById('dgc-voice-btn');
-  if(b){b.textContent='🔊 Read Slide';b.style.background='#F76604';b.disabled=false;}
+  _p=false; _wi=0; _words=[];
+  if(_t){clearInterval(_t);_t=null;}
+  _btn('🔊 Read Slide','#F76604',false);
 }
-function _vSpeak(text){
-  var sentences=text.match(/[^.!?]+[.!?]+/g)||[text];
-  sentences=sentences.filter(function(s){return s.trim().length>2;});
-  var voices=window.speechSynthesis.getVoices();
-  var voice=voices.find(function(v){return v.lang==='en-NZ';})||
-            voices.find(function(v){return v.lang==='en-AU';})||
-            voices.find(function(v){return v.lang.startsWith('en');})||voices[0];
-  var i=0;
-  _vTimer=setInterval(function(){if(_vPlaying&&window.speechSynthesis.paused)window.speechSynthesis.resume();},250);
-  function next(){
-    if(!_vPlaying||i>=sentences.length){clearInterval(_vTimer);_vStop();return;}
-    var utt=new SpeechSynthesisUtterance(sentences[i].trim());
-    utt.rate=0.85;utt.pitch=1.05;utt.volume=1.0;
-    if(voice)utt.voice=voice;
-    utt.onend=function(){i++;setTimeout(next,200);};
-    utt.onerror=function(){i++;setTimeout(next,200);};
-    window.speechSynthesis.speak(utt);
-    i++;
+function _getVoice(){
+  var vs=window.speechSynthesis.getVoices();
+  if(!vs.length) return null;
+  // Prefer high-quality neural/natural voices by name
+  var preferred=['Samantha','Karen','Daniel','Moira','Tessa','Fiona',
+    'Google UK English Female','Google UK English Male',
+    'Google Australian English','Microsoft Libby','Microsoft Sonia',
+    'Microsoft Ryan','Serena','Victoria'];
+  for(var i=0;i<preferred.length;i++){
+    var v=vs.find(function(v){return v.name===preferred[i];});
+    if(v) return v;
   }
-  next();
+  // Fallback: any en-AU, en-NZ, en-GB
+  return vs.find(function(v){return v.lang==='en-AU';})||
+         vs.find(function(v){return v.lang==='en-NZ';})||
+         vs.find(function(v){return v.lang==='en-GB';})||
+         vs.find(function(v){return v.lang.startsWith('en');})||vs[0];
 }
-async function _vPlay(){
-  var el=document.querySelector('#sc div.active');
-  if(!el)return;
-  var raw=(el.innerText||el.textContent||'').replace(/\s+/g,' ').trim().slice(0,600);
-  if(!raw)return;
-  var b=document.getElementById('dgc-voice-btn');
-  if(b){b.textContent='⏳...';b.style.background='#555';b.disabled=true;}
-  _vPlaying=true;
-  try{
-    var res=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({message:'Explain this training slide warmly to a NZ worker in 5-6 sentences: '+raw,userName:null,organisation:null})});
-    var d=await res.json();
-    if(b){b.textContent='⏹ Stop';b.style.background='#c0392b';b.disabled=false;}
-    _vSpeak(d.reply||raw);
-  }catch(e){
-    if(b){b.textContent='⏹ Stop';b.style.background='#c0392b';b.disabled=false;}
-    _vSpeak(raw);
+function _chunk(words, size){
+  var out=[];
+  for(var i=0;i<words.length;i+=size) out.push(words.slice(i,i+size).join(' '));
+  return out;
+}
+function _speakChunks(chunks, i){
+  if(!_p||i>=chunks.length){if(i>=chunks.length)_stop();return;}
+  var utt=new SpeechSynthesisUtterance(chunks[i]);
+  utt.rate=0.78; utt.pitch=1.0; utt.volume=1.0;
+  if(_voice) utt.voice=_voice;
+  utt.onend=function(){
+    if(!_p) return;
+    setTimeout(function(){_speakChunks(chunks,i+1);},200);
+  };
+  utt.onerror=function(e){
+    if(!_p) return;
+    setTimeout(function(){_speakChunks(chunks,i+1);},200);
+  };
+  window.speechSynthesis.speak(utt);
+}
+window.dgcToggleVoice=function(){_p?_stop():_play();};
+window.dgcStopVoice=function(){_stop();};
+function _play(){
+  var id=SLIDES[cur-1];
+  var text=_expl[id];
+  if(!text) return;
+  window.speechSynthesis.cancel();
+  _p=true;
+  _btn('⏹ Stop','#c0392b',false);
+  // Load voices - may need a moment
+  _voice=_getVoice();
+  if(!_voice){
+    window.speechSynthesis.onvoiceschanged=function(){
+      _voice=_getVoice();
+      window.speechSynthesis.onvoiceschanged=null;
+      _doSpeak(text);
+    };
+  } else {
+    _doSpeak(text);
   }
 }
+function _doSpeak(text){
+  // Split into chunks of 25 words - short enough to never cut off
+  var words=text.split(' ');
+  var chunks=_chunk(words,25);
+  // Chrome keepalive - resume if paused
+  _t=setInterval(function(){
+    if(!_p){clearInterval(_t);return;}
+    if(window.speechSynthesis.paused) window.speechSynthesis.resume();
+  },500);
+  _speakChunks(chunks,0);
+}
+})();
 </script>
 </body>
 </html>
