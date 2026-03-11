@@ -2,27 +2,37 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  
   if (req.method === 'OPTIONS') { res.status(200).end(); return; }
-  
-  // Health check for GET requests
+
   if (req.method === 'GET') {
     res.status(200).json({ 
       status: 'ok',
       key_present: !!process.env.ELEVENLABS_API_KEY,
-      key_prefix: process.env.ELEVENLABS_API_KEY ? process.env.ELEVENLABS_API_KEY.substring(0, 8) : 'MISSING'
+      key_prefix: process.env.ELEVENLABS_API_KEY ? process.env.ELEVENLABS_API_KEY.substring(0,8) : 'MISSING'
     });
     return;
   }
 
-  const text = req.body && req.body.text;
-  if (!text) { res.status(400).json({ error: 'No text provided' }); return; }
+  // Parse body - handle both parsed and unparsed
+  let body = req.body;
+  if (typeof body === 'string') {
+    try { body = JSON.parse(body); } catch(e) { body = {}; }
+  }
+  if (!body) body = {};
 
-  const VOICE_ID = '21m00Tcm4TlvDq8ikWAM'; // Rachel - free tier
+  const text = body.text;
+  const lang = body.lang || 'en';
+
+  if (!text) { 
+    res.status(400).json({ error: 'No text provided', body_received: JSON.stringify(body) }); 
+    return; 
+  }
+
+  const VOICE_ID = '21m00Tcm4TlvDq8ikWAM'; // Rachel
   const apiKey = process.env.ELEVENLABS_API_KEY;
-  
+
   if (!apiKey) {
-    res.status(500).json({ error: 'ELEVENLABS_API_KEY not set in environment' });
+    res.status(500).json({ error: 'ELEVENLABS_API_KEY not set' });
     return;
   }
 
@@ -47,7 +57,7 @@ export default async function handler(req, res) {
     if (!elResponse.ok) {
       const errText = await elResponse.text();
       res.status(500).json({
-        error: 'ElevenLabs rejected request',
+        error: 'ElevenLabs error',
         http_status: elResponse.status,
         details: errText
       });
@@ -60,6 +70,6 @@ export default async function handler(req, res) {
     res.status(200).send(Buffer.from(audioBuffer));
 
   } catch (err) {
-    res.status(500).json({ error: 'Caught exception', message: err.message, stack: err.stack });
+    res.status(500).json({ error: err.message });
   }
 }
