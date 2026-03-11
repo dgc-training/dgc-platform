@@ -7,9 +7,7 @@ export default async function handler(req, res) {
   const { text, lang } = req.body;
   if (!text) { res.status(400).json({ error: 'No text' }); return; }
 
-  // Rachel - universally available on all ElevenLabs plans including free
-  // Voice ID: 21m00Tcm4TlvDq8ikWAM
-  const VOICE_ID = '21m00Tcm4TlvDq8ikWAM';
+  const VOICE_ID = '21m00Tcm4TlvDq8ikWAM'; // Rachel
 
   try {
     const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`, {
@@ -22,22 +20,25 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         text: text,
         model_id: 'eleven_multilingual_v2',
-        voice_settings: {
-          stability: 0.5,
-          similarity_boost: 0.75
-        }
+        voice_settings: { stability: 0.5, similarity_boost: 0.75 }
       })
     });
 
     if (!response.ok) {
       const err = await response.text();
-      res.status(500).json({ error: 'ElevenLabs error', details: err });
+      // Return FULL error so we can debug
+      res.status(500).json({ 
+        error: 'ElevenLabs error', 
+        status: response.status,
+        details: err,
+        key_present: !!process.env.ELEVENLABS_API_KEY,
+        key_prefix: process.env.ELEVENLABS_API_KEY ? process.env.ELEVENLABS_API_KEY.substring(0,8) : 'MISSING'
+      });
       return;
     }
 
     const audioBuffer = await response.arrayBuffer();
     res.setHeader('Content-Type', 'audio/mpeg');
-    res.setHeader('Cache-Control', 'public, max-age=86400');
     res.status(200).send(Buffer.from(audioBuffer));
 
   } catch (error) {
