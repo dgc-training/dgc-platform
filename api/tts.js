@@ -8,13 +8,22 @@ export default async function handler(req, res) {
     return;
   }
 
-  const text = req.body?.text || (req.body && req.body.text);
-  if (!text) {
-    res.status(400).json({ error: 'missing text', got: JSON.stringify(req.body) });
+  const text = req.body?.text;
+  if (!text) { res.status(400).json({ error: 'missing text' }); return; }
+
+  // First get available voices, use the first one
+  const voicesRes = await fetch('https://api.elevenlabs.io/v1/voices', {
+    headers: { 'xi-api-key': process.env.ELEVENLABS_API_KEY }
+  });
+  const voicesData = await voicesRes.json();
+  const voiceId = voicesData.voices && voicesData.voices[0] && voicesData.voices[0].voice_id;
+  
+  if (!voiceId) {
+    res.status(500).json({ error: 'no voices found', data: voicesData });
     return;
   }
 
-  const r = await fetch('https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM', {
+  const r = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
     method: 'POST',
     headers: {
       'xi-api-key': process.env.ELEVENLABS_API_KEY,
@@ -30,7 +39,7 @@ export default async function handler(req, res) {
 
   if (!r.ok) {
     const e = await r.text();
-    res.status(500).json({ error: 'elevenlabs', status: r.status, body: e });
+    res.status(500).json({ error: 'elevenlabs', status: r.status, body: e, voice_used: voiceId });
     return;
   }
 
