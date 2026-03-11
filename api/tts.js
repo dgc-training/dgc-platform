@@ -8,18 +8,16 @@ export default async function handler(req, res) {
     return;
   }
 
-  const text = req.body?.text;
-  if (!text) { res.status(400).json({ error: 'missing text' }); return; }
+  const text = req.body?.text || 'Hello';
 
-  // First get available voices, use the first one
+  // Auto-detect first available voice
   const voicesRes = await fetch('https://api.elevenlabs.io/v1/voices', {
     headers: { 'xi-api-key': process.env.ELEVENLABS_API_KEY }
   });
   const voicesData = await voicesRes.json();
-  const voiceId = voicesData.voices && voicesData.voices[0] && voicesData.voices[0].voice_id;
-  
+  const voiceId = voicesData.voices?.[0]?.voice_id;
   if (!voiceId) {
-    res.status(500).json({ error: 'no voices found', data: voicesData });
+    res.status(500).json({ error: 'no voices', data: voicesData });
     return;
   }
 
@@ -39,11 +37,14 @@ export default async function handler(req, res) {
 
   if (!r.ok) {
     const e = await r.text();
-    res.status(500).json({ error: 'elevenlabs', status: r.status, body: e, voice_used: voiceId });
+    res.status(500).json({ error: 'elevenlabs', status: r.status, body: e, voice: voiceId });
     return;
   }
 
   const buf = await r.arrayBuffer();
   res.setHeader('Content-Type', 'audio/mpeg');
+  res.setHeader('Content-Length', buf.byteLength);
+  res.setHeader('X-Voice-Id', voiceId);
+  res.setHeader('X-Buffer-Size', buf.byteLength);
   res.status(200).send(Buffer.from(buf));
 }
