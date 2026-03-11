@@ -7,8 +7,9 @@ export default async function handler(req, res) {
   const { text, lang } = req.body;
   if (!text) { res.status(400).json({ error: 'No text' }); return; }
 
-  // Multilingual v2 voice - speaks any language naturally
-  const VOICE_ID = '9BWtsMINqrJLrRacOk9x'; // Aria - multilingual
+  // Rachel - universally available on all ElevenLabs plans including free
+  // Voice ID: 21m00Tcm4TlvDq8ikWAM
+  const VOICE_ID = '21m00Tcm4TlvDq8ikWAM';
 
   try {
     const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}`, {
@@ -23,9 +24,7 @@ export default async function handler(req, res) {
         model_id: 'eleven_multilingual_v2',
         voice_settings: {
           stability: 0.5,
-          similarity_boost: 0.75,
-          style: 0.3,
-          use_speaker_boost: true
+          similarity_boost: 0.75
         }
       })
     });
